@@ -1,0 +1,20 @@
+{
+  "name": "jobscout-local",
+  "version": "0.16.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/launch.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check:share": "node scripts/check-source.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "unpdf": "1.9.1"
+  },
+  "description": "Local job discovery, company watchlists and optional Ollama reviews with country-aware setup and remote work.",
+  "license": "AGPL-3.0-only"
+}

@@ -1,0 +1,6 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {localModels,requireLocalModel} from '../local-ai.mjs';
+const model=name=>({name,size:2000000000,details:{format:'gguf'}});
+test('model choices exclude cloud suffixes, remote metadata and tiny stubs',()=>{assert.deepEqual(localModels({models:[model('local:4b'),model('big:cloud'),{...model('alias'),remote_host:'https://ollama.com'},{...model('stub'),size:300}]}).map(m=>m.name),['local:4b']);});
+test('generation validates downloaded model and rejects remote aliases or embedding-only models',async()=>{let detail={details:{format:'gguf'},capabilities:['completion']};const fetch=async url=>url.endsWith('/api/tags')?{models:[model('local:latest')]}:detail;assert.equal(await requireLocalModel('local',fetch,'http://127.0.0.1'), 'local');detail={...detail,remote_host:'https://ollama.com'};await assert.rejects(requireLocalModel('local',fetch,'http://127.0.0.1'),/Cloud aliases/);detail={details:{format:'gguf'},capabilities:['embedding']};await assert.rejects(requireLocalModel('local',fetch,'http://127.0.0.1'),/embedding/);await assert.rejects(requireLocalModel('missing',fetch,'http://127.0.0.1'),/unavailable/);await assert.rejects(requireLocalModel('model:cloud',fetch,'http://127.0.0.1'),/Cloud models/);});

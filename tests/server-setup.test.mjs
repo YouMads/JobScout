@@ -1,0 +1,30 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import path from 'node:path';
+import {access} from 'node:fs/promises';
+import {root,temporary,removeTemporary,listen,freePort,environment,launch,stop} from './setup-helpers.mjs';
+test('custom setup works from another directory, uses the configured local model and protects private routes',async t=>{
+ const dir=await temporary(t,{cleanup:false}),calls=[];let running,mock;
+ t.after(async()=>{try{if(running)await stop(running);}finally{if(mock){mock.closeAllConnections();await new Promise(resolve=>mock.close(resolve));}await removeTemporary(dir);}});
+ mock=http.createServer(async(req,res)=>{let text='';for await(const chunk of req)text+=chunk;calls.push({url:req.url,body:text?JSON.parse(text):null});res.setHeader('Content-Type','application/json');res.end(JSON.stringify(req.url==='/api/tags'?{models:[{name:'fixture-model:latest',size:2000000000,details:{format:'gguf'}}]}:req.url==='/api/show'?{details:{format:'gguf'},capabilities:['completion']}:{message:{content:JSON.stringify({summary:'No additional roles.',jobs:[]})}}));});
+ const mockPort=await listen(mock);
+ const port=await freePort(),env=environment({JOBSCOUT_PORT:String(port),JOBSCOUT_MODEL:'fixture-model',JOBSCOUT_OLLAMA_URL:'http://127.0.0.1:'+mockPort,JOBSCOUT_DATA_DIR:path.join(dir,'cache')});
+ running=launch(path.join(root,'server.mjs'),{cwd:dir,env});const ready=await running.ready,base='http://127.0.0.1:'+port;assert.equal(ready.url,base);
+ const health=await(await fetch(base+'/api/health')).json();assert.equal(health.app,'jobscout-local');assert.equal(health.model,'fixture-model');assert.equal(calls.length,0);
+ const status=await(await fetch(base+'/api/status')).json();assert.equal(status.installed,true);assert.equal(status.model,'fixture-model');
+ for(const name of ['/.env','/.git/config','/data/jobs.json','/config.mjs'])assert.equal((await fetch(base+name)).status,404);
+ assert.equal((await fetch(base+'/api/health',{headers:{Origin:'https://other.example'}})).status,403);
+ const badHost=await new Promise((resolve,reject)=>{const request=http.get(base+'/api/health',{headers:{Host:'other.example:'+port}},response=>{response.resume();resolve(response.statusCode);});request.on('error',reject);});assert.equal(badHost,403);
+ const index=await fetch(base+'/');assert.equal(index.status,200);assert.match(index.headers.get('Content-Security-Policy'),/frame-ancestors 'none'/);assert.match(await index.text(),/JobScout/);await access(path.join(dir,'cache'));
+ const post=async(route,body)=>{const response=await fetch(base+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});assert.equal(response.status,200);return response.json();};
+ const empty=await post('/api/search',{sources:[]});assert.deepEqual(empty.jobs,[]);
+ const scan=await post('/api/scan/collect',{url:'https://example.org/careers',pastedText:'Example careers. There are no advertised positions in this sample page; check again later.'});assert.equal(scan.pasted,true);
+ const analyzed=await post('/api/scan/analyze',{scanId:scan.scanId});assert.equal(analyzed.aiComplete,true);assert.equal(calls.at(-1).body.model,'fixture-model');assert.equal(calls.at(-1).url,'/api/chat');
+ const reuse=launch(path.join(root,'scripts/launch.mjs'),{cwd:dir,env});reuse.ready.catch(()=>{});const result=await reuse.done;assert.equal(result.code,0);assert.match(result.output,/already running/);assert.equal((await fetch(base+'/api/health')).status,200);
+});
+test('portable launcher starts from another working directory and stops only its own server',async t=>{
+ const dir=await temporary(t,{cleanup:false}),port=await freePort();let running;t.after(async()=>{try{if(running)await stop(running,{viaLauncher:true});}finally{await removeTemporary(dir);}});const env=environment({JOBSCOUT_PORT:String(port),JOBSCOUT_MODEL:'test-local-model',JOBSCOUT_DATA_DIR:path.join(dir,'cache')});
+ running=launch(path.join(root,'scripts/launch.mjs'),{cwd:dir,env});const ready=await running.ready;assert.equal(ready.url,'http://127.0.0.1:'+port);assert.equal((await fetch(ready.url+'/api/health')).status,200);
+ await stop(running,{viaLauncher:true});assert.equal((await running.done).code,0);await assert.rejects(fetch(ready.url+'/api/health'));
+});

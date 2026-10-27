@@ -1,0 +1,34 @@
+# Local runtime data, including the public feed cache and any directory junction.
+/data/
+/node_modules/
+/.local/
+/coverage/
+/dist/
+/artifacts/
+*.log
+*.pid
+
+# Machine-specific settings and credentials. Only the blank example is shareable.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Personal exports and model downloads do not belong in the source repository.
+/backups/
+/exports/
+/uploads/
+/private/
+*.gguf
+*.safetensors
+JobScout*.zip
+jobscout-backup-*.json
+JobScout-backup-*.json
+JobScout-applications-*.csv
+
+# Editor and operating-system files.
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

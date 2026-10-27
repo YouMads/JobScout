@@ -1,0 +1,21 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import path from 'node:path';
+import {root,temporary,removeTemporary,listen,freePort,environment,launch,stop} from './setup-helpers.mjs';
+test('dashboard connection test and AI reviews use the selected local model and selected country',async t=>{
+ const dir=await temporary(t,{cleanup:false}),calls=[];let running,mock;
+ t.after(async()=>{try{if(running)await stop(running);}finally{if(mock){mock.closeAllConnections();await new Promise(resolve=>mock.close(resolve));}await removeTemporary(dir);}});
+ mock=http.createServer(async(req,res)=>{let text='';for await(const chunk of req)text+=chunk;const body=text?JSON.parse(text):null;calls.push({url:req.url,body});const isTest=body?.messages?.[0]?.content.includes('Connection test');
+ const data=req.url==='/api/tags'?{models:['fixture:4b','second:3b','blocked:cloud'].map(name=>({name,size:2000000000,details:{format:'gguf'}}))}:req.url==='/api/show'?{details:{format:'gguf'},capabilities:['completion']}:{message:{content:JSON.stringify(isTest?{ok:true}:{summary:'Review',strengths:[],gaps:[],locationNote:'Check employer terms',recommendation:'Read the listing'})}};res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));});
+ const mockPort=await listen(mock),port=await freePort();running=launch(path.join(root,'server.mjs'),{cwd:dir,env:environment({JOBSCOUT_PORT:String(port),JOBSCOUT_MODEL:'fixture:4b',JOBSCOUT_OLLAMA_URL:'http://127.0.0.1:'+mockPort,JOBSCOUT_DATA_DIR:path.join(dir,'cache')})});const {url:base}=await running.ready;
+ const post=(route,body)=>fetch(base+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const status=await(await fetch(base+'/api/status')).json();assert.deepEqual(status.models.map(m=>m.name),['fixture:4b','second:3b']);
+ const sources=await(await fetch(base+'/api/sources?country=GR')).json();assert.equal(sources.recommended.length,4);assert.match(sources.sources.find(s=>s.name==='Himalayas').coverage,/Greece/);
+ for(const route of ['/countries.mjs','/setup.js'])assert.equal((await fetch(base+route)).status,200);
+ const result=await(await post('/api/ai/test',{model:'second:3b'})).json();assert.equal(result.ok,true);assert.equal(result.model,'second:3b');assert.equal(calls.at(-1).body.model,'second:3b');assert.equal(calls.at(-1).body.messages.length,1);
+ const count=calls.filter(c=>c.url==='/api/chat').length;assert.equal((await post('/api/ai/test',{model:'blocked:cloud'})).status,503);assert.equal(calls.filter(c=>c.url==='/api/chat').length,count);
+ const manualJob={id:'manual-fixture',manual:true,title:'Software developer',company:'Fixture',location:'Greece',work:'Remote',url:'https://example.org/jobs/1',description:'Python role'};
+ const review=await(await post('/api/analyze',{id:manualJob.id,manualJob,profile:{country:'GR',model:'second:3b',role:'Software developer'}})).json();assert.equal(review.model,'second:3b');assert.equal(review.review.country,'GR');const prompt=JSON.parse(calls.at(-1).body.messages[1].content);assert.equal(prompt.candidate.location,'Greece');
+ assert.equal((await(await fetch(base+'/api/health')).json()).model,'fixture:4b');assert.equal((await(await fetch(base+'/api/status')).json()).busy,false);
+});

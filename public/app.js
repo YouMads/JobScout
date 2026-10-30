@@ -1,3 +1,4 @@
+import {sourceHealth} from '/source-health.mjs';
 import {normalizeSavedSearches,saveSearch} from '/saved-searches.mjs';
 import {normalizeAvailability,recordAvailability,availabilityKey,freshnessFor} from '/freshness.mjs';
 import {countryInfo,countryListed,countryCoverage,normalizeCountryPreferences} from '/countries.mjs';
@@ -54,6 +55,7 @@ let resultRenderTimer,scanRenderTimer,lastRenderedDay='';
 const siteWorkspaces=new Map();
 let siteScanRun=null,siteBatchRun=null;
 let comparisonJobs=new Map(), followUpFilter='all', plannerPriority='all', plannerOrder='default';
+let sourcesOwner=null,sourceRecommendations=[];
 let searchEdit=null, searchSaveOwner=null;
 let toastTimer, activity='all', visiblePageJobs=[], sourceCatalog=[], editingManualId=null, cvOwner=null, cvFileName='', cvRequest=0, cvController;
 const current = () => state.profiles.find(p => p.id === state.active);
@@ -224,9 +226,15 @@ function clearResultFilters() {
 function showSources() {
   const ok = sources.filter(s => s.status === 'ok').length;
   $('#stat-sources').textContent = sources.length ? `${ok}/${sources.length}` : current().enabledSources?.length===0?'0/0':'—';
-  $('#source-caption').textContent = !sources.length?'No sources selected':`${sources.length} of ${sourceCatalog.length||14} sources enabled`;
+  $('#source-caption').textContent = !sources.length?(searchDone?'No sources selected':'Search to check selected websites'):`${sources.length} of ${sourceCatalog.length||14} sources enabled`;
   $('#feeds-summary').textContent = sources.length ? `· ${ok}/${sources.length} connected` : current().enabledSources?.length===0?'· no sources selected':'· checking';
-  $('#source-status').innerHTML = sources.map(s => `<div class="source-tile ${s.status === 'ok' ? '' : 'source-failed'}"><strong>${esc(s.name)}</strong><span>${s.status === 'ok' ? esc(s.count) + ' listings fetched' : 'Unavailable · cached if available'}</span><small>${s.status==='error'?'Last attempt':'Checked'} ${esc(new Date(s.checkedAt||s.fetchedAt).toLocaleString())}</small>${s.coverage ? `<small>${esc(s.coverage)}</small>` : ''}</div>`).join('') + '<p class="muted">Counts show fetched listings before your filters. Successful feeds refresh every 6 hours; Himalayas daily. Failed feeds can retry after 15 minutes when you search again. Unchanged feeds reuse cached listings where supported.</p>';
+  const failures=sources.filter(s=>s.status!=='ok');
+  $('#source-status').innerHTML = `<div class="source-health-heading"><div><h3>Where your results come from</h3><p>${ok} available · ${failures.length} need attention. Counts are before your search filters.</p></div><button class="secondary" id="health-search" ${busy?'disabled':''}>Search again</button></div>` + sources.map(s=>{
+    const h=sourceHealth(s),time=value=>value?esc(new Date(value).toLocaleString()):'Not recorded';
+    const next=h.ready?'Ready to check on your next search':`Next check in about ${h.minutes<60?h.minutes+' min':Math.ceil(h.minutes/60)+' hr'}`;
+    return `<article class="source-tile ${h.failed?'source-failed':''}"><div class="source-health-title"><strong>${esc(s.name)}</strong><span class="health-badge">${esc(h.label)}</span></div><span>${h.count} listings in this snapshot</span><small>Last attempt: ${time(h.checkedAt)}</small>${h.failed?`<small>Last successful download: ${time(h.lastSuccessAt)}</small><p class="small">${h.count?'Previous listings remain available. The source could not refresh.':'This source could not load. Try again when the waiting period ends, or choose another website.'}</p>`:''}<small>${next}</small>${s.coverage?`<small>${esc(s.coverage)}</small>`:''}</article>`;
+  }).join('')+'<p class="small muted source-health-footnote">Checks run when you search, not automatically. Successful feeds are reused for 6 hours (Himalayas: 24 hours); failures wait 15 minutes. Search again respects these limits to reduce downloads. Feed availability does not confirm an individual job is open.</p>';
+  $('#health-search').onclick=()=>search();
 }
 async function search({scroll = false} = {}) {
   if(!current().setupComplete){setup.open();return;}
@@ -240,6 +248,7 @@ async function search({scroll = false} = {}) {
   searchError = '';
   $('#search').disabled = true;
   $('#refresh-search').disabled = true;
+  if($('#health-search'))$('#health-search').disabled=true;
   $('#search').textContent = 'Finding opportunities…';
   $('#notice').hidden = true;
   render();
@@ -251,7 +260,7 @@ async function search({scroll = false} = {}) {
     if(firstTracking)for(const item of Object.values(current().saved))current().tracking=setActivity(current().tracking,item.job,'seen',item.savedAt||new Date().toISOString());
     persist();
     jobs = result.jobs;
-    sources = result.sources.map(s => ({...s, fetchedAt:s.fetchedAt || result.updated}));
+    sources = result.sources.map(s => ({...s, fetchedAt:s.fetchedAt || (s.status==='ok'?result.updated:null)}));
     applied = snapshot;
     searchDone = true;
     page = 1;
@@ -280,6 +289,7 @@ async function search({scroll = false} = {}) {
       busy = false;
       $('#search').disabled = false;
       $('#refresh-search').disabled = false;
+      if($('#health-search'))$('#health-search').disabled=false;
       $('#search').innerHTML = 'Find opportunities <span aria-hidden="true">↗</span>';
       render();
     }
@@ -355,15 +365,18 @@ function details(raw,section=detailTab) {
 }
 
 function resetForProfile() {
+  sourcesOwner=null;
   searchEdit=null;
   for(const id of ['saved-searches-dialog','save-search-dialog'])if($('#'+id).open)$('#'+id).close();
   comparisonJobs.clear();
   selectedJob=null;selectedJobOwner=null;guideReturnJob=null;
-  for(const id of ['job-dialog','comparison-dialog','guide-dialog','scanner-dialog','websites-dialog','setup-dialog'])if($('#'+id).open)$('#'+id).close();
+  for(const id of ['job-dialog','comparison-dialog','guide-dialog','scanner-dialog','websites-dialog','setup-dialog','sources-dialog'])if($('#'+id).open)$('#'+id).close();
   jobs = [];
+  sources = [];
   searchDone = false;
   searchError = '';
   applied = {...current().preferences};
+  showSources();
   profileUI();
   clearResultFilters();
   loadCatalog();status();
@@ -536,7 +549,7 @@ appearance();
 render();
 status();
 if(current().setupComplete)search();else queueMicrotask(()=>setup.open());
-setInterval(()=>{if(!document.hidden)status();}, 60000);
+setInterval(()=>{if(!document.hidden){status();if(searchDone)showSources();}}, 60000);
 
 // Profile-local reading history, source choices, CV text and manual jobs.
 function toolkit(){
@@ -564,7 +577,7 @@ function commitProfile(patch,profileId=current().id){
 }
 async function loadCatalog(){
  const country=current().preferences.country;
- try{const data=await api('/api/sources?country='+country);if(country!==current().preferences.country)return;sourceCatalog=data.sources;toolkit();if(searchDone)showSources();}
+ try{const data=await api('/api/sources?country='+country);if(country!==current().preferences.country)return;sourceCatalog=data.sources;sourceRecommendations=data.recommended||[];toolkit();if(searchDone)showSources();}
  catch{sourceCatalog=[];}
 }
 $('#activity-tabs').onclick=event=>{const button=event.target.closest('[data-reading]');if(button){activity=button.dataset.reading;page=1;render();}};
@@ -573,14 +586,27 @@ $('#mark-page-seen').onclick=()=>{
  if(commitProfile({tracking:next})){render();toast('Jobs on this page marked seen.');}
 };
 $('#open-sources').onclick=async()=>{
+ const owner=current().id;
  if(!sourceCatalog.length)await loadCatalog();
+ if(owner!==current().id)return;
+ sourcesOwner=owner;$('#source-search').value='';
  $('#source-choices').innerHTML=sourceCatalog.map((s,i)=>`<label class="source-choice" for="source-option-${i}"><input id="source-option-${i}" type="checkbox" value="${esc(s.name)}" ${current().enabledSources===null||current().enabledSources.includes(s.name)?'checked':''}><span><strong>${esc(s.name)}</strong><small>${esc(s.coverage)}</small></span></label>`).join('');
  $('#sources-message').textContent=sourceCatalog.length?'Changes apply to '+current().name+'.':'Could not load the source list. Close this panel and try again.';
  $('#save-sources').disabled=!sourceCatalog.length;
+ updateSourceSelection();
  $('#sources-dialog').showModal();
 };
-for(const [id,checked] of [['sources-all',true],['sources-none',false]])$('#'+id).onclick=()=>document.querySelectorAll('#source-choices input').forEach(input=>{input.checked=checked;});
+for(const [id,checked] of [['sources-all',true],['sources-none',false]])$('#'+id).onclick=()=>{document.querySelectorAll('#source-choices input').forEach(input=>{input.checked=checked;});updateSourceSelection();};
+function updateSourceSelection(){
+ const total=document.querySelectorAll('#source-choices input').length,selected=document.querySelectorAll('#source-choices input:checked').length;
+ $('#source-selection-count').textContent=selected+' of '+total+' websites selected'+(selected?'':'. Searches will return no feed jobs.');
+}
+$('#source-choices').onchange=updateSourceSelection;
+$('#sources-recommended').onclick=()=>{document.querySelectorAll('#source-choices input').forEach(input=>{input.checked=sourceRecommendations.includes(input.value);});updateSourceSelection();};
+$('#source-search').oninput=()=>{const query=$('#source-search').value.trim().toLowerCase();let count=0;document.querySelectorAll('#source-choices label').forEach(label=>{label.hidden=!label.textContent.toLowerCase().includes(query);if(!label.hidden)count++;});$('#source-search-empty').hidden=count>0;};
 $('#save-sources').onclick=()=>{
+ if(sourcesOwner!==current().id){$('#sources-dialog').close();return;}
+
  const enabledSources=Array.from(document.querySelectorAll('#source-choices input:checked')).map(input=>input.value);
  if(!commitProfile({enabledSources}))return;
  $('#sources-dialog').close();toolkit();clearResultFilters();search();

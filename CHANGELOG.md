@@ -1,3 +1,11 @@
+# 0.17.0 - Clearer source health and safer website settings
+
+- Source status separates available feeds, cached fallback results and sources with no data. Show last attempt, last successful download and the next eligible check.
+- Search again respects existing refresh intervals; the health panel does not trigger extra downloads.
+- Website settings support text search, selection counts and country recommendations without losing hidden checkbox choices.
+- Prevent website settings from being saved into another profile after switching.
+- Do not invent a successful download timestamp for a source that has only failed.
+
 # 0.16.1 - Public release preparation
 
 - Added AGPL-3.0-only licensing and copyright attribution to YouMad (YouMads).

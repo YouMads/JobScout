@@ -154,3 +154,10 @@ The catalog now includes GitLab careers (14 feeds total). Enable it under Job we
 Successful caches retain the existing six-hour refresh interval (24 hours for Himalayas). Failed refreshes retain prior listings and retry after 15 minutes when a search is requested. Single-page feeds send ETag or Last-Modified validators when available; providers returning 304 avoid retransmitting their JSON. Savings depend on provider support and whether the feed changed. Requests run at most three at once, with a 12 MB decompressed response limit. No background job-feed polling was added.
 
 GitLab was verified against its live public endpoint during implementation. Greenhouse documents public read access at https://docs.greenhouse.io/job-board.html . This does not guarantee every listed role accepts applicants from your country.
+
+
+## Source health and website settings
+
+Open **Source status** above the results to see which feeds are available, whether a failed source has cached results, and when a fresh check becomes eligible. **Search again** respects existing cache intervals; it does not force repeated downloads. A feed being available does not prove each vacancy is open.
+
+In **Job websites**, search by name or coverage, review how many feeds are selected, or apply **Country recommendations**. Filtering this list does not change hidden selections. Save sources & search applies the choices only to the profile that opened the dialog. Selecting no feeds intentionally returns no feed results and keeps saved applications.

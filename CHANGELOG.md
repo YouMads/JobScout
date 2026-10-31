@@ -1,3 +1,13 @@
+# 0.18.0 - Poor-match feedback and local application drafts
+
+- Record per-job feedback for wrong country, seniority or role; review suggested filters before explicitly applying them.
+- Add an Application draft tab with local AI cover letters, CV advice, unresolved questions and validated candidate quotations.
+- CV inclusion is opt-in. Drafts are editable, copyable and downloadable; no application is submitted.
+- Creating a draft saves the job to My applications. Existing application notes and stages remain intact.
+- Preserve up to 50 drafts and 300 feedback records per profile in browser storage and backups; support older backups.
+- Cancel requests and prevent results crossing profiles; keep previous drafts if generation fails or is cancelled.
+- Added API, evidence-validation, backup and UI-flow checks.
+
 # 0.17.0 - Clearer source health and safer website settings
 
 - Source status separates available feeds, cached fallback results and sources with no data. Show last attempt, last successful download and the next eligible check.

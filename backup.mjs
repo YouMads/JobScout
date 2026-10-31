@@ -1,3 +1,4 @@
+import {normalizeDrafts,normalizeFeedback} from './application-tools.mjs';
 import {normalizeSavedSearches} from './saved-searches.mjs';
 import {normalizeAvailability,expiryISO} from './freshness.mjs';
 import {normalizeCountryPreferences} from './countries.mjs';
@@ -33,6 +34,6 @@ export function readBackup(data){
    if(!id(key)||!object(r)||!Array.isArray(r.strengths)||!Array.isArray(r.gaps))throw Error('An AI review in this backup is invalid. Nothing was imported.');
    reviews[key]={country:str(r.country,2)||'CY',model:str(r.model,160),cvUsed:r.cvUsed===true,reviewedAt:str(r.reviewedAt,60),cvUpdatedAt:str(r.cvUpdatedAt,60),summary:str(r.summary,4000),recommendation:str(r.recommendation,2000),locationNote:str(r.locationNote,2000),strengths:r.strengths.slice(0,10).map(v=>str(v,1000)),gaps:r.gaps.slice(0,10).map(v=>str(v,1000))};
   }
-  return {name:str(p.name,50).trim(),preferences:normalizeCountryPreferences(preferences),setupComplete:true,savedSearches:normalizeSavedSearches(p.savedSearches),saved,reviews,availability:normalizeAvailability(p.availability),tracking:normalizeTracking(p.tracking),cv:normalizeCv(p.cv),enabledSources:normalizeEnabled(p.enabledSources),websites:normalizeWatchlist(p.websites)};
+  return {name:str(p.name,50).trim(),preferences:normalizeCountryPreferences(preferences),setupComplete:true,drafts:normalizeDrafts(p.drafts),feedback:normalizeFeedback(p.feedback),savedSearches:normalizeSavedSearches(p.savedSearches),saved,reviews,availability:normalizeAvailability(p.availability),tracking:normalizeTracking(p.tracking),cv:normalizeCv(p.cv),enabledSources:normalizeEnabled(p.enabledSources),websites:normalizeWatchlist(p.websites)};
  });
 }

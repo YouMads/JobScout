@@ -1,3 +1,4 @@
+import {draftContext,draftMessages,draftSchema,validateDraft} from './application-tools.mjs';
 import {feedFresh,refreshFeed,mapLimited} from './feed-refresh.mjs';
 import {isExpired} from './freshness.mjs';
 import {checkVacancy,createCheckCache} from './vacancy-check.mjs';
@@ -112,6 +113,19 @@ const server=http.createServer(async(req,res)=>{
    }catch(error){send(res,503,{error:'The local AI scan could not finish: '+error.message+'. Open Ollama and try the AI step again. Structured listings already found remain available.'});}
    finally{aiBusy=false;aiTask='';cancellation.dispose();}return;
   }
+  if(req.method==='POST'&&url.pathname==='/api/application/draft'){
+   const input=await body(req);let context;
+   try{context=draftContext(input);}catch(error){send(res,400,{error:error.message});return;}
+   if(aiBusy){send(res,429,{error:'Local AI is busy. Try again when the current task finishes.'});return;}
+   aiBusy=true;aiTask='application draft';const cancellation=scanCancellation(res,240000);
+   try{
+    const model=await requireLocalModel(input.profile?.model||MODEL,jsonFetch,OLLAMA);
+    const result=await jsonFetch(OLLAMA+'/api/chat',240000,{signal:cancellation.signal,method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,stream:false,think:false,format:draftSchema,options:{num_ctx:8192,num_predict:1800,temperature:0.1},messages:draftMessages(context)})});
+    const draft=validateDraft(JSON.parse(result.message?.content||'{}'),context);
+    send(res,200,{draft:{...draft,model,createdAt:new Date().toISOString(),cvUsed:Boolean(context.candidate.cv),jobTitle:context.job.title,company:context.job.company}});
+   }catch(error){send(res,503,{error:'Could not create the local draft: '+error.message});}
+   finally{aiBusy=false;aiTask='';cancellation.dispose();}return;
+  }
   if(req.method==='POST'&&url.pathname==='/api/analyze'){
    const {id,profile,cv,manualJob}=await body(req);let job=cache.jobs.find(j=>j.id===id);
    if(!job&&manualJob?.manual===true&&manualJob.id===id)job=createManualJob(manualJob,id,manualJob.date);
@@ -126,7 +140,7 @@ const server=http.createServer(async(req,res)=>{
    }catch(e){send(res,503,{error:`Local AI could not finish: ${e.message}. Check the selected local model in Settings.`});}finally{aiBusy=false;aiTask='';}return;
   }
   if(req.method==='GET'){
-   const files={'/source-health.mjs':['source-health.mjs','text/javascript'],'/saved-searches.mjs':['saved-searches.mjs','text/javascript'],'/freshness.mjs':['freshness.mjs','text/javascript'],'/countries.mjs':['countries.mjs','text/javascript'],'/setup.js':['public/setup.js','text/javascript'],'/':['public/index.html','text/html'],'/app.js':['public/app.js','text/javascript'],'/style.css':['public/style.css','text/css'],'/workspace.mjs':['workspace.mjs','text/javascript'],'/candidate.mjs':['candidate.mjs','text/javascript'],'/lib.mjs':['lib.mjs','text/javascript'],'/description.mjs':['description.mjs','text/javascript'],'/backup.mjs':['backup.mjs','text/javascript'],'/matching.mjs':['matching.mjs','text/javascript'],'/view-model.mjs':['public/view-model.mjs','text/javascript'],'/watchlist.mjs':['watchlist.mjs','text/javascript'],'/duplicates.mjs':['duplicates.mjs','text/javascript']};
+   const files={'/application-tools.mjs':['application-tools.mjs','text/javascript'],'/applications.js':['public/applications.js','text/javascript'],'/source-health.mjs':['source-health.mjs','text/javascript'],'/saved-searches.mjs':['saved-searches.mjs','text/javascript'],'/freshness.mjs':['freshness.mjs','text/javascript'],'/countries.mjs':['countries.mjs','text/javascript'],'/setup.js':['public/setup.js','text/javascript'],'/':['public/index.html','text/html'],'/app.js':['public/app.js','text/javascript'],'/style.css':['public/style.css','text/css'],'/workspace.mjs':['workspace.mjs','text/javascript'],'/candidate.mjs':['candidate.mjs','text/javascript'],'/lib.mjs':['lib.mjs','text/javascript'],'/description.mjs':['description.mjs','text/javascript'],'/backup.mjs':['backup.mjs','text/javascript'],'/matching.mjs':['matching.mjs','text/javascript'],'/view-model.mjs':['public/view-model.mjs','text/javascript'],'/watchlist.mjs':['watchlist.mjs','text/javascript'],'/duplicates.mjs':['duplicates.mjs','text/javascript']};
    if(files[url.pathname]){const [name,type]=files[url.pathname];res.writeHead(200,{'Content-Type':type+'; charset=utf-8','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"});res.end(await readFile(path.join(ROOT,name)));return;}
   }
   send(res,404,{error:'Not found'});

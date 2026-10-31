@@ -25,3 +25,8 @@ The data directory contains public feed cache data, not browser profiles. Archiv
 Browser storage and exports are plain data, not encrypted storage. Back up before clearing site data or changing browser/origin. localhost, 127.0.0.1 and different ports have separate storage. Import creates copies of profiles.
 
 The server binds to 127.0.0.1 and validates Host/Origin. Ollama configuration is loopback-only and intended for downloaded local models. JobScout does not manage accounts, keys, subscriptions or model downloads. Public hosting, authenticated shared accounts and unattended scans are outside the current local design.
+
+
+## Application drafts and poor-match feedback
+
+Draft letters, candidate quotations, CV suggestions and poor-match feedback are stored with the active browser profile and included in exported backups. Treat backups and downloaded letters as personal files. CV inclusion in draft generation is opt-in; profile skills/background and the selected job description go to the configured local Ollama endpoint. JobScout does not send drafts to employers, analytics services or a cloud model. Feedback is not uploaded for training and does not silently change filters.

@@ -32,3 +32,6 @@ JobScout-applications-*.csv
 Thumbs.db
 .vscode/
 .idea/
+
+# Personal application drafts
+JobScout-application-draft*.txt

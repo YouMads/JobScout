@@ -85,3 +85,8 @@ npm run check:share checks the manifest and Git-visible paths for unexpected fil
 Package-Source.ps1 uses that same manifest for a versioned ZIP next to the project. Archives exclude .git, node_modules, runtime data, local .env files, logs, browser state, exports and models. Fresh copies create their own ordinary data folder; machine-specific junctions are excluded.
 
 The license remains undecided. See CONTRIBUTING.md, docs/PRIVACY.md and docs/GIT-SETUP.md before preparing a public release.
+
+
+## Application assistance
+
+`application-tools.mjs` defines feedback suggestions, bounded profile-data normalization, draft prompts and exact candidate-quotation validation. `public/applications.js` owns the job-level feedback and draft UI, including cancellation and profile ownership. The `/api/application/draft` route shares the local AI lock, validates the installed model and bounds prompt context. Drafts remain advisory: validating quotations does not verify every claim in generated prose.

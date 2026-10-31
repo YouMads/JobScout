@@ -161,3 +161,14 @@ GitLab was verified against its live public endpoint during implementation. Gree
 Open **Source status** above the results to see which feeds are available, whether a failed source has cached results, and when a fresh check becomes eligible. **Search again** respects existing cache intervals; it does not force repeated downloads. A feed being available does not prove each vacancy is open.
 
 In **Job websites**, search by name or coverage, review how many feeds are selected, or apply **Country recommendations**. Filtering this list does not change hidden selections. Save sources & search applies the choices only to the profile that opened the dialog. Selecting no feeds intentionally returns no feed results and keeps saved applications.
+
+
+## Poor matches and application drafts
+
+Open a job's **Job listing** section and use **Not the right match?** to record wrong country, too senior or wrong role. This is local feedback, not model training or an automatic exclusion. Any proposed filter changes are shown first; choose **Apply these filters & search** to use them. Wrong-role feedback offers the existing filter editor. Clearing feedback does not undo previously applied filters.
+
+The **Application draft** tab creates an editable cover letter, CV improvement suggestions, questions to resolve and candidate evidence quotations using the selected local Ollama model. Skills and background are included; CV text is included only if you select its checkbox. Add candidate information in Settings before generating. The job description is context, not evidence of your qualifications. Quotations are validated against supplied candidate text, but the letter can still contain mistakes: review every claim and replace placeholders before using it.
+
+Successful generation saves the job to My applications without changing existing notes or stages. Use **Save edits**, **Copy letter** or **Download letter**; copy/download uses the currently visible letter, including unsaved edits. Replacement requires confirmation. Cancellation or failure preserves the previous saved draft. Switching profiles cancels an active draft request. No message or application is sent automatically.
+
+Up to 50 drafts and the latest 300 feedback records are kept per profile and included in backups. Delete an old draft before creating a 51st. Drafts are snapshots: review or regenerate after changes to the job, CV or profile. Removing a saved application does not automatically delete its separately stored draft; delete the draft from its tab when no longer needed.

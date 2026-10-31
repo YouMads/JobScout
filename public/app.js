@@ -1,3 +1,5 @@
+import {createApplicationTools} from '/applications.js';
+import {normalizeDrafts,normalizeFeedback} from '/application-tools.mjs';
 import {sourceHealth} from '/source-health.mjs';
 import {normalizeSavedSearches,saveSearch} from '/saved-searches.mjs';
 import {normalizeAvailability,recordAvailability,availabilityKey,freshnessFor} from '/freshness.mjs';
@@ -22,13 +24,15 @@ const defaults = {
   country:'CY', model:'', role: 'Software developer', area: 'local_remote', city: 'Any city', level: 'Any level',
   work: 'Any', skills: '', query: '', remoteScope: 'likely', background: '', years: '', experienceMode: 'strict', juniorEvidence:'all'
 };
-const makeProfile = (name, id = crypto.randomUUID()) => ({id, name, setupComplete:false, preferences: {...defaults}, saved: {}, reviews: {}, availability:{}, tracking:normalizeTracking(), cv:normalizeCv(), enabledSources:null,websites:[],savedSearches:[]});
+const makeProfile = (name, id = crypto.randomUUID()) => ({id, name, setupComplete:false, preferences: {...defaults}, saved: {}, reviews: {}, availability:{}, tracking:normalizeTracking(), cv:normalizeCv(), enabledSources:null,websites:[],savedSearches:[],drafts:{},feedback:{}});
 function readStorage(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
 }
 let state = readStorage(STORAGE_KEY, null);
 if (!state?.profiles?.length) state = {active: 'default', profiles: [makeProfile('My profile', 'default')]};
 for (const profile of state.profiles) {
+  profile.drafts=normalizeDrafts(profile.drafts);
+  profile.feedback=normalizeFeedback(profile.feedback);
   profile.savedSearches=normalizeSavedSearches(profile.savedSearches);
   profile.tracking = normalizeTracking(profile.tracking);
   profile.cv = normalizeCv(profile.cv);
@@ -59,6 +63,8 @@ let sourcesOwner=null,sourceRecommendations=[];
 let searchEdit=null, searchSaveOwner=null;
 let toastTimer, activity='all', visiblePageJobs=[], sourceCatalog=[], editingManualId=null, cvOwner=null, cvFileName='', cvRequest=0, cvController;
 const current = () => state.profiles.find(p => p.id === state.active);
+const applications=createApplicationTools({current,getProfile:id=>state.profiles.find(p=>p.id===id),context:()=>({job:selectedJob,owner:selectedJobOwner}),commit:commitProfile,api,toast,onAiChange:()=>{counts();toolkit();status();},applyFilters:patch=>{if(commitProfile({preferences:{...current().preferences,...patch}})){profileUI();$('#job-dialog').close();search({scroll:true});}},editFilters:()=>{$('#job-dialog').close();openFilters();}});
+
 
 function persist() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -346,12 +352,12 @@ function details(raw,section=detailTab) {
   $('#job-details').innerHTML = `<h2 class="dialog-title" id="dialog-job-title">${esc(job.title)}</h2><p class="dialog-company">${esc(job.company)} · ${esc(job.location)}</p>${sourceBadges(job)}<div class="tags"><span class="tag">${esc(job.work)}</span><span class="tag location">${esc(job.locationCheck.label)}</span>${job.salary?`<span class="tag">${esc(job.salary)}</span>`:''}</div>
     <div class="dialog-actions"><a href="${esc(safeLink(job.url))}" target="_blank" rel="noopener noreferrer" class="primary">Open job website ↗</a><button class="secondary" id="detail-save">${saved?'Remove saved job':'Save to My applications'}</button>${job.manual?'<button class="secondary" id="edit-manual-job">Edit manual job</button>':''}${compareButton(job)}</div>
     <p class="small muted">The original listing opens on its website. You choose whether to submit an application.</p>
-    <div id="detail-sections" class="detail-sections" role="group" aria-label="Listing sections"><button id="job-section-listing" data-section="listing" aria-controls="job-pane-listing"><span>Job listing</span><small>From the employer</small></button><button id="job-section-ai" data-section="ai" aria-controls="job-pane-ai"><span>✦ AI review</span><small id="detail-ai-state">On request</small></button><button id="job-section-notes" data-section="notes" aria-controls="job-pane-notes"><span>Your notes</span><small>You update this</small></button></div>
-    <section id="job-pane-listing" aria-labelledby="job-section-listing"><div id="listing-availability"></div>${matchHTML(job,true)}<details class="match-evidence"><summary>Automatic text checks <span>Experience & location</span></summary><p><strong>Junior evidence:</strong> ${esc(job.experience.levelLabel)}. ${esc(job.experience.levelEvidence)}<br><strong>Experience:</strong> ${esc(job.experience.label)}${job.experience.evidence?` — “${esc(job.experience.evidence)}”`:'. Check the original requirements.'}</p>${job.experience.preferredLabel?`<p><strong>Optional experience:</strong> ${esc(job.experience.preferredLabel)} — “${esc(job.experience.preferredEvidence)}”. Preferred years do not exclude a junior search.</p>`:''}<p><strong>Location:</strong> ${esc(job.locationCheck.label)}. ${esc(job.locationCheck.note)}</p><p class="small muted">These are text checks. Confirm the requirements on the original listing.</p><button class="text-button" data-guide="matching">How matching works ↗</button></details>
+    <div id="detail-sections" class="detail-sections" role="group" aria-label="Listing sections"><button id="job-section-listing" data-section="listing" aria-controls="job-pane-listing"><span>Job listing</span><small>From the employer</small></button><button id="job-section-ai" data-section="ai" aria-controls="job-pane-ai"><span>✦ AI review</span><small id="detail-ai-state">On request</small></button><button id="job-section-application" data-section="application" aria-controls="job-pane-application"><span>Application draft</span><small>Local AI · you review</small></button><button id="job-section-notes" data-section="notes" aria-controls="job-pane-notes"><span>Your notes</span><small>You update this</small></button></div>
+    <section id="job-pane-listing" aria-labelledby="job-section-listing"><div id="listing-availability"></div>${matchHTML(job,true)}${applications.feedbackHTML(job)}<details class="match-evidence"><summary>Automatic text checks <span>Experience & location</span></summary><p><strong>Junior evidence:</strong> ${esc(job.experience.levelLabel)}. ${esc(job.experience.levelEvidence)}<br><strong>Experience:</strong> ${esc(job.experience.label)}${job.experience.evidence?` — “${esc(job.experience.evidence)}”`:'. Check the original requirements.'}</p>${job.experience.preferredLabel?`<p><strong>Optional experience:</strong> ${esc(job.experience.preferredLabel)} — “${esc(job.experience.preferredEvidence)}”. Preferred years do not exclude a junior search.</p>`:''}<p><strong>Location:</strong> ${esc(job.locationCheck.label)}. ${esc(job.locationCheck.note)}</p><p class="small muted">These are text checks. Confirm the requirements on the original listing.</p><button class="text-button" data-guide="matching">How matching works ↗</button></details>
     ${current().cv.text?`<section class="cv-evidence"><span class="method-label method-auto">KEYWORD OVERLAP</span><h3>Skills also mentioned in your CV</h3><div class="tags">${job.cvMatch.shared.length?job.cvMatch.shared.map(skill=>`<span class="tag">${esc(skill)}</span>`).join(''):'<span class="muted">No shared technical keywords identified.</span>'}</div><p class="small muted">A text comparison of technical keywords. An AI review adds written context.</p></section>`:''}
     <section class="role-about" aria-labelledby="about-role-title"><div class="about-heading"><div><span class="eyebrow">EMPLOYER DESCRIPTION</span><h3 id="about-role-title">About this role</h3></div><span class="about-source">From ${esc(job.source)}</span></div><div class="role-description">${renderDescription(job)}</div><div class="description-footer"><span>${esc(dateLabel(job))}</span><a href="${esc(safeLink(job.url))}" target="_blank" rel="noopener noreferrer">Read on ${esc(job.source)} ↗</a></div></section></section>
     <section id="job-pane-ai" aria-labelledby="job-section-ai" hidden>${reviewWorkbenchHTML(job)}</section>
-    ${notesPaneHTML(saved,job)}`;
+    <section id="job-pane-application" aria-labelledby="job-section-application" hidden>${applications.draftHTML(job)}</section>${notesPaneHTML(saved,job)}`;
   if(job.manual)$('#edit-manual-job').onclick=()=>{ $('#job-dialog').close();openManual(job); };
   $('#detail-save').onclick = () => toggleSave(job.id);
   if (saved) bindApplicationPlan(job);
@@ -359,12 +365,14 @@ function details(raw,section=detailTab) {
   $('#detail-sections').onclick=event=>{const button=event.target.closest('[data-section]');if(button)setDetailTab(button.dataset.section);};
   if($('#notes-save'))$('#notes-save').onclick=()=>toggleSave(job.id);
   if($('#notes-pipeline'))$('#notes-pipeline').onclick=()=>{$('#job-dialog').close();setView('saved');};
+  applications.bind(job);
   setDetailTab(section);
   updateAvailability();
   updateAiUI();
 }
 
 function resetForProfile() {
+  applications.cancel();
   sourcesOwner=null;
   searchEdit=null;
   for(const id of ['saved-searches-dialog','save-search-dialog'])if($('#'+id).open)$('#'+id).close();
@@ -745,8 +753,8 @@ $('#guide-dialog').onclose=()=>{const back=guideReturnJob;guideReturnJob=null;if
 $('#check-ai-connection').onclick=async()=>{const button=$('#check-ai-connection');button.disabled=true;button.textContent='Checking…';await status();button.disabled=false;button.textContent='Check AI connection';};
 
 function setDetailTab(section){
- detailTab=['listing','ai','notes'].includes(section)?section:'listing';
- for(const name of ['listing','ai','notes']){const selected=name===detailTab;$('#job-pane-'+name).hidden=!selected;const button=$('#job-section-'+name);button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));}
+ detailTab=['listing','ai','application','notes'].includes(section)?section:'listing';
+ for(const name of ['listing','ai','application','notes']){const selected=name===detailTab;$('#job-pane-'+name).hidden=!selected;const button=$('#job-section-'+name);button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));}
  if(detailTab==='ai')updateAiUI();
 }
 

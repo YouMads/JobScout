@@ -1,0 +1,22 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import path from 'node:path';
+import {root,temporary,removeTemporary,listen,freePort,environment,launch,stop} from './setup-helpers.mjs';
+test('application API uses local model, explicit CV consent, evidence validation and clears busy state',async t=>{
+ const dir=await temporary(t,{cleanup:false}),calls=[];let running,mock,bad=false;
+ t.after(async()=>{try{if(running)await stop(running);}finally{if(mock){mock.closeAllConnections();await new Promise(r=>mock.close(r));}await removeTemporary(dir);}});
+ mock=http.createServer(async(req,res)=>{let raw='';for await(const chunk of req)raw+=chunk;const body=raw?JSON.parse(raw):null;calls.push({url:req.url,body});
+ const data=req.url==='/api/tags'?{models:[{name:'fixture:4b',size:2000000000,details:{format:'gguf'}}]}:req.url==='/api/show'?{details:{format:'gguf'},capabilities:['completion']}:{message:{content:JSON.stringify({coverLetter:'Dear hiring team, I built a dashboard. [Your name]',cvSuggestions:['Describe the project'],questions:['Confirm eligibility'],evidence:[{source:'background',quote:bad?'Invented employment':'Built a dashboard'}]})}};
+ res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));});
+ const mockPort=await listen(mock),port=await freePort();running=launch(path.join(root,'server.mjs'),{cwd:dir,env:environment({JOBSCOUT_PORT:String(port),JOBSCOUT_MODEL:'fixture:4b',JOBSCOUT_OLLAMA_URL:'http://127.0.0.1:'+mockPort,JOBSCOUT_DATA_DIR:path.join(dir,'cache')})});const {url:base}=await running.ready;
+ const post=body=>fetch(base+'/api/application/draft',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const input={job:{title:'Developer',company:'Fixture',description:'Python role'},profile:{model:'fixture:4b',background:'Built a dashboard'},cv:{text:'Private CV'}};
+ assert.equal((await post({job:input.job})).status,400);
+ let response=await post(input);assert.equal(response.status,200);assert.equal((await response.json()).draft.cvUsed,false);
+ assert.equal(JSON.parse(calls.at(-1).body.messages[1].content).candidate.cv,'');assert.equal(calls.at(-1).body.model,'fixture:4b');
+ response=await post({...input,includeCv:true});assert.equal((await response.json()).draft.cvUsed,true);assert.equal(JSON.parse(calls.at(-1).body.messages[1].content).candidate.cv,'Private CV');
+ bad=true;assert.equal((await post(input)).status,503);assert.equal((await(await fetch(base+'/api/status')).json()).busy,false);
+ assert.equal((await post({...input,profile:{...input.profile,model:'blocked:cloud'}})).status,503);
+ for(const asset of ['/applications.js','/application-tools.mjs'])assert.equal((await fetch(base+asset)).status,200);
+});

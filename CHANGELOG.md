@@ -1,3 +1,12 @@
+# 0.19.0 - Cleaner responsive workspace
+
+- Compact summary panels, a simpler navigation rail and consistent typography, spacing, controls and job cards.
+- Group secondary tools and saved searches in an expandable section; keep core search controls visible.
+- Group advanced result controls under Refine results without changing their active values.
+- Refine job dialogs, draft editing, setup and mobile controls; preserve close-button visibility while scrolling.
+- Harmonize light/dark control contrast and respect reduced-motion preferences.
+- Verify layouts at 320, 390, 768, 1024 and 1440 pixels and rerun setup, source, saved-search and draft browser flows.
+
 # 0.18.0 - Poor-match feedback and local application drafts
 
 - Record per-job feedback for wrong country, seniority or role; review suggested filters before explicitly applying them.

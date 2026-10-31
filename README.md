@@ -158,7 +158,7 @@ GitLab was verified against its live public endpoint during implementation. Gree
 
 ## Source health and website settings
 
-Open **Source status** above the results to see which feeds are available, whether a failed source has cached results, and when a fresh check becomes eligible. **Search again** respects existing cache intervals; it does not force repeated downloads. A feed being available does not prove each vacancy is open.
+Open **Refine results → Source status** above the results to see which feeds are available, whether a failed source has cached results, and when a fresh check becomes eligible. **Search again** respects existing cache intervals; it does not force repeated downloads. A feed being available does not prove each vacancy is open.
 
 In **Job websites**, search by name or coverage, review how many feeds are selected, or apply **Country recommendations**. Filtering this list does not change hidden selections. Save sources & search applies the choices only to the profile that opened the dialog. Selecting no feeds intentionally returns no feed results and keeps saved applications.
 
@@ -172,3 +172,10 @@ The **Application draft** tab creates an editable cover letter, CV improvement s
 Successful generation saves the job to My applications without changing existing notes or stages. Use **Save edits**, **Copy letter** or **Download letter**; copy/download uses the currently visible letter, including unsaved edits. Replacement requires confirmation. Cancellation or failure preserves the previous saved draft. Switching profiles cancels an active draft request. No message or application is sent automatically.
 
 Up to 50 drafts and the latest 300 feedback records are kept per profile and included in backups. Delete an old draft before creating a 51st. Drafts are snapshots: review or regenerate after changes to the job, CV or profile. Removing a saved application does not automatically delete its separately stored draft; delete the draft from its tab when no longer needed.
+
+
+## Cleaner workspace layout (0.19)
+
+Expand **Search tools & saved searches** for job websites, CV, manual job entry, website scans, watchlists and named searches. The main results keep text search, website filtering and sorting visible. **Refine results** contains availability, reading status and source-health controls. Your choices remain active when these sections are collapsed.
+
+The black/gray layout supports light and dark themes, smaller screens, keyboard navigation and reduced-motion preferences. Job details keep a visible close control while scrolling, with separate tabs for the listing, AI review, application draft and notes.

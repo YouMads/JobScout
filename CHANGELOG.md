@@ -1,3 +1,11 @@
+# 0.19.2 - Respect country exclusions in job descriptions
+
+- Give explicit hiring exclusions in description text precedence over Worldwide and local labels.
+- Recognize direct negative hiring statements and remote/worldwide exceptions, including regional exclusions.
+- Show the matched exclusion as evidence and remove conflicting jobs from normal/confirmed remote searches; the explicit all-locations option remains available.
+- Keep affirmative hiring statements, unrelated benefit/product restrictions and separate positive clauses from becoming country exclusions.
+- Add regression coverage and repeat the synthetic seven-day search audit.
+
 # 0.19.1 - Less repeated work and easier filter recovery
 
 - Reuse normalized job text while filtering; release cached text when old jobs are discarded.

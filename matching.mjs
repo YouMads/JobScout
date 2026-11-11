@@ -33,6 +33,16 @@ export function experienceSignals(job){
  const labels={mixed:'Mixed seniority',conflict:'Junior title · check years',experienced:'Experienced role',junior:'Explicit junior / graduate',early:'Early-career requirement',unknown:'Junior suitability unknown'};
  return {alternativeEvidence:alternatives[0]||'',minimumYears,evidence:strongest?.evidence||'',label:strongest?strongest.years+'+ years in requirements':alternatives.length?'Alternative requirements · verify':'Required years not identified',preferredYears:nice?.years??null,preferredEvidence:nice?.evidence||'',preferredLabel:nice?'Preferred: '+nice.years+'+ years · not required':'',category,levelLabel:labels[category],levelEvidence:junior||senior?title:directEntry?.[0]||strongest?.evidence||''};
 }
+// Restrict negative matching to hiring/role statements, not benefits or customer locations.
+function descriptionExclusions(description){
+ const text=String(description).replace(/<[^>]*>/g,' ').replace(/&nbsp;/gi,' ');
+ const patterns=[
+  /\b(?:cannot|can['’]t|do not|don't|don’t|unable to|not able to)\s+(?:currently\s+)?(?:hire|employ|recruit)\s+(?:(?:candidates|applicants|people|residents)\s+)?(?:(?:who are|based|located|residing|living)\s+)*(?:in|from|of)\s+[^.!?;\n]{1,140}/gi,
+  /\b(?:role|position|job|opportunity)\s+(?:is\s+)?not\s+(?:open|available)\s+(?:to\s+(?:(?:candidates|applicants|residents)\s+)?)?(?:(?:based|located|living)\s+)?(?:in|from|of)\s+[^.!?;\n]{1,140}/gi,
+  /\b(?:remote|worldwide|anywhere|all countries)\b[^.!?;\n]{0,40}?\b(?:except|excluding)\s+[^.!?;\n]{1,140}/gi
+ ];
+ return patterns.flatMap(pattern=>[...text.matchAll(pattern)].map(m=>m[0].split(/\b(?:but|however|while)\b/i)[0].trim()));
+}
 export function locationSignals(job,code='CY'){
  const c=countryInfo(code),loc=String(job.location||''),desc=String(job.description||'');
  const local=countryListed(loc,c.code),worldwide=/worldwide|anywhere|all countries/i.test(loc),region=regionListed(loc,c.code);
@@ -42,8 +52,15 @@ export function locationSignals(job,code='CY'){
  const restrictions=[...desc.matchAll(/(?:must (?:be (?:based|located|resident)|reside|live)|(?:only|exclusively) (?:open|available) to (?:candidates |applicants |residents )?(?:in |of |based in )?)[^.!?\n]{0,140}/gi)].map(m=>m[0]);
  const excluded=/(?:except|excluding|not available in|not open to)[^.!?\n]{0,100}/i.exec(loc)?.[0]||'';
  const conflict=restrictions.find(e=>{const codes=explicitCountries(e),regional=/\b(?:Europe|European Union|EU|EMEA|APAC|LATAM|Americas|North America|Latin America|Asia|Africa|Oceania|Middle East)\b/i.test(e);return (codes.length||regional)&&!codes.includes(c.code)&&!regionListed(e,c.code);});
- const restrictionConflict=Boolean(conflict||excluded&&(countryListed(excluded,c.code)||regionListed(excluded,c.code)));
- const restrictionEvidence=conflict||excluded||'';
+ const descriptionExcluded=descriptionExclusions(desc).find(e=>{
+  // For broad labels, inspect only the exclusion tail (not 'worldwide').
+  if(/\b(?:cannot|can['’]t|do not|don't|don’t|unable to|not able to|not open|not available)\b/i.test(e)&&/\b(?:except|unless|excluding)\b/i.test(e))return false;
+  const scope=e.split(/\b(?:except|excluding)\b/i).at(-1);
+  return countryListed(scope,c.code)||regionListed(scope,c.code);
+ });
+ const locationExcluded=excluded&&(countryListed(excluded,c.code)||regionListed(excluded,c.code));
+ const restrictionConflict=Boolean(conflict||locationExcluded||descriptionExcluded);
+ const restrictionEvidence=conflict||descriptionExcluded||(locationExcluded?excluded:'')||'';
  const note=restrictionConflict?'The listing states: “'+restrictionEvidence+'”. This conflicts with '+c.name+'.':tzExcluded?'Listed timezone offsets do not include the standard offsets checked for '+c.name+'.':descRestriction?'Check this restriction in the listing: “'+descRestriction+'”.':'Confirm employer coverage, timezone overlap, and your right to work before applying.';
  const label=restrictionConflict?'Country requirement conflicts':tzExcluded?'Timezone mismatch':local?c.name+' explicitly listed':worldwide?'Worldwide listed · verify terms':region?'Region listed · '+c.name+' unconfirmed':job.remote?'Country restriction / unclear':'Outside '+c.name;
  return {restrictionConflict,restrictionEvidence,label,note,country:c.code,countryListed:local,cyprusListed:c.code==='CY'&&local,worldwide,region,tzExcluded,descriptionRestriction:descRestriction,confirmedLead:(local||worldwide)&&!tzExcluded&&!restrictionConflict&&(!descRestriction||explicitCountries(descRestriction).includes(c.code))};

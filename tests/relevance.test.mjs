@@ -14,3 +14,20 @@ test('match explanations preserve unknowns, mention evidence and use skill bound
 test('architect and founding-engineer titles observed in feed data are not junior leads',()=>{for(const title of ['Founding Software Engineer - Backend & Cloud Infrastructure','Rust Architect / Backend Developer']){const j=job(title);assert.equal(experienceSignals(j).category,'experienced');assert.equal(matchJobs([j],{level:'Intern / Junior'}).length,0);assert.equal(matchJobs([j],{level:'Any level'}).length,1);}});
 
 test('regional requirements support alternatives without treating Europe as worldwide',()=>{const j=job('Developer','You must be based in Europe or the United States.','Worldwide');assert.equal(locationSignals(j,'CY').restrictionConflict,false);assert.equal(locationSignals(j,'US').restrictionConflict,false);assert.equal(locationSignals(j,'AU').restrictionConflict,true);assert.equal(locationSignals(job('Developer','You must be based in Europe.','Worldwide'),'US').restrictionConflict,true);assert.equal(locationSignals(job('Developer','','Worldwide excluding Europe'),'CY').restrictionConflict,true);});
+
+test('description country exclusions override broad labels and retain evidence',()=>{
+ for(const description of ['We cannot hire candidates based in Cyprus.','This role is not open to applicants in Cyprus.','Remote worldwide except Cyprus.','We are unable to employ residents of Europe.','Worldwide excluding Europe.','We cannot hire candidates in Germany or Cyprus.']){
+  const j=job('Junior Developer',description,'Worldwide');
+  const signal=locationSignals(j,'CY');assert.equal(signal.restrictionConflict,true,description);assert.equal(signal.confirmedLead,false);assert.ok(signal.restrictionEvidence.length>0);
+  for(const remoteScope of ['region','confirmed'])assert.equal(matchJobs([j],{country:'CY',remoteScope}).length,0,description);
+  assert.equal(matchJobs([j],{country:'CY',remoteScope:'all'}).length,1);
+  assert.equal(explainMatch(j,{country:'CY'})[1].kind,'conflict');
+ }
+});
+test('country exclusion scope does not consume positive clauses or unrelated mentions',()=>{
+ for(const description of ['We can hire candidates based in Cyprus.','We cannot hire in Europe except Cyprus.','We cannot hire candidates in Germany, but we can hire in Cyprus.','Remote worldwide except Germany.','No visa sponsorship is available in Cyprus.','Our product is not available in Cyprus.','Experience with clients in Cyprus is preferred.']){
+  assert.equal(locationSignals(job('Developer',description,'Worldwide'),'CY').restrictionConflict,false,description);
+ }
+ assert.equal(locationSignals(job('Developer','Remote worldwide excluding Europe.','Worldwide'),'US').restrictionConflict,false);
+ assert.equal(locationSignals(job('Developer','This position is not available to residents of Cyprus.','Worldwide'),'CY').restrictionConflict,true);
+});

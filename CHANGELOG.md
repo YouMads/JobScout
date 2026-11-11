@@ -1,3 +1,10 @@
+# 0.20.0 - Application requirements at a glance
+
+- Add a Before you apply panel with evidence excerpts for work authorization, visa sponsorship and language expectations.
+- Surface detected categories on result cards and reuse the existing per-job enrichment cache.
+- Keep mentions advisory: no inferred candidate eligibility, automatic rejection or extra AI requests.
+- Explain missing detections as unknown and safely render source text in both themes and mobile layouts.
+
 # 0.19.2 - Respect country exclusions in job descriptions
 
 - Give explicit hiring exclusions in description text precedence over Worldwide and local labels.

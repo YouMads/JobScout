@@ -179,3 +179,7 @@ Up to 50 drafts and the latest 300 feedback records are kept per profile and inc
 Expand **Search tools & saved searches** for job websites, CV, manual job entry, website scans, watchlists and named searches. The main results keep text search, website filtering and sorting visible. **Refine results** contains availability, reading status and source-health controls. Your choices remain active when these sections are collapsed.
 
 The black/gray layout supports light and dark themes, smaller screens, keyboard navigation and reduced-motion preferences. Job details keep a visible close control while scrolling, with separate tabs for the listing, AI review, application draft and notes.
+
+### Before you apply
+
+Job cards highlight detected work authorization, visa sponsorship and language wording. Open a listing to read the **Before you apply** panel and its source excerpts. These are automatic text checks, not AI assessments or eligibility decisions. Positive, negative and preferred wording is quoted for you to interpret. No detection means unknown; check the original listing. The checks currently target common English wording and a limited set of language names.

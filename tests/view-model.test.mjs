@@ -14,3 +14,12 @@ test('cached job checks invalidate when CV text or the job object changes',()=>{
  const enrich=createJobEnricher(),job={id:'cached',title:'Junior Developer',company:'Acme',description:'Python and React.',location:'Cyprus'};
  const first=enrich(job,{text:'Python developer'}),second=enrich(job,{text:'React developer'});assert.notEqual(first,second);assert.deepEqual(second.cvMatch.shared,['React']);const changed=enrich({...job,description:'Java developer role'},{text:'React developer'});assert.deepEqual(changed.cvMatch.shared,[]);
 });
+
+test('search text cache reflects edits and does not reuse another job with the same ID',()=>{
+ const job={id:'same',title:'Engineer',company:'Acme',description:'Python',tags:['remote']};
+ assert.equal(filterResults([job],{query:'PYTHON'}).length,1);
+ job.description='Java';job.tags[0]='onsite';
+ assert.equal(filterResults([job],{query:'python'}).length,0);
+ assert.equal(filterResults([job],{query:'onsite'}).length,1);
+ assert.equal(filterResults([{...job,description:'Python'}],{query:'python'}).length,1);
+});

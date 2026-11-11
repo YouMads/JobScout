@@ -1,3 +1,4 @@
+import {serveAsset} from './static-assets.mjs';
 import {draftContext,draftMessages,draftSchema,validateDraft} from './application-tools.mjs';
 import {feedFresh,refreshFeed,mapLimited} from './feed-refresh.mjs';
 import {isExpired} from './freshness.mjs';
@@ -141,7 +142,7 @@ const server=http.createServer(async(req,res)=>{
   }
   if(req.method==='GET'){
    const files={'/layout.css':['public/layout.css','text/css'],'/application-tools.mjs':['application-tools.mjs','text/javascript'],'/applications.js':['public/applications.js','text/javascript'],'/source-health.mjs':['source-health.mjs','text/javascript'],'/saved-searches.mjs':['saved-searches.mjs','text/javascript'],'/freshness.mjs':['freshness.mjs','text/javascript'],'/countries.mjs':['countries.mjs','text/javascript'],'/setup.js':['public/setup.js','text/javascript'],'/':['public/index.html','text/html'],'/app.js':['public/app.js','text/javascript'],'/style.css':['public/style.css','text/css'],'/workspace.mjs':['workspace.mjs','text/javascript'],'/candidate.mjs':['candidate.mjs','text/javascript'],'/lib.mjs':['lib.mjs','text/javascript'],'/description.mjs':['description.mjs','text/javascript'],'/backup.mjs':['backup.mjs','text/javascript'],'/matching.mjs':['matching.mjs','text/javascript'],'/view-model.mjs':['public/view-model.mjs','text/javascript'],'/watchlist.mjs':['watchlist.mjs','text/javascript'],'/duplicates.mjs':['duplicates.mjs','text/javascript']};
-   if(files[url.pathname]){const [name,type]=files[url.pathname];res.writeHead(200,{'Content-Type':type+'; charset=utf-8','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"});res.end(await readFile(path.join(ROOT,name)));return;}
+   if(Object.hasOwn(files,url.pathname)){const [name,type]=files[url.pathname];await serveAsset(req,res,path.join(ROOT,name),type);return;}
   }
   send(res,404,{error:'Not found'});
  }catch(e){console.error(e.message);send(res,400,{error:e.message});}

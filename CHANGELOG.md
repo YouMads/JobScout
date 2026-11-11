@@ -1,3 +1,11 @@
+# 0.19.1 - Less repeated work and easier filter recovery
+
+- Reuse normalized job text while filtering; release cached text when old jobs are discarded.
+- Avoid rebuilding the hidden watchlist panel on every result update.
+- Revalidate interface assets with content-based ETags: unchanged files return an empty 304 response, while changed files load immediately on refresh.
+- Keep personal API responses uncached and preserve browser security headers.
+- Add a visible Clear filters action when result filters are active; fix empty results caused by availability filters not resetting.
+
 # 0.19.0 - Cleaner responsive workspace
 
 - Compact summary panels, a simpler navigation rail and consistent typography, spacing, controls and job cards.

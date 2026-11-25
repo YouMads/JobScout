@@ -14,3 +14,13 @@ test('unreadable, malformed and empty PDF documents have helpful errors',async()
  await assert.rejects(()=>extractCv(Buffer.from('%PDF-1.4\nThis is not a valid PDF file.')),/Could not read this PDF/);
  await assert.rejects(()=>extractCv(Buffer.from('PK\x03\x04\0word document')),/Use PDF/);
 });
+
+test('repeated PDF reads recover after empty and malformed documents',async()=>{
+ for(let i=0;i<8;i++){
+  await assert.rejects(()=>extractCv(makePdf([])),/No readable CV text/);
+  await assert.rejects(()=>extractCv(Buffer.from('%PDF-1.4\nInvalid PDF')),/Could not read this PDF/);
+  const result=await extractCv(makePdf());
+  assert.match(result.text,/Synthetic Candidate/);
+  assert.equal(result.totalPages,1);
+ }
+});

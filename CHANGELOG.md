@@ -1,3 +1,11 @@
+# 0.20.2 - Faster matching and result preparation
+
+- Reject unrelated role titles before expensive experience and location analysis.
+- Reuse country-name detection with a bounded 512-entry in-memory cache, bypassing long inputs and returning independent arrays.
+- Reuse already computed location/experience signals when building result explanations.
+- On the saved 832-record audit snapshot, 12 warmed repetitions measured median matching time of 688.47 ms before versus 186.35 ms after; fresh result enrichment measured 175.82 ms versus 59.18 ms. Serialized outputs were identical. These measurements exclude feed downloads and AI generation and vary by machine.
+- Add regression checks for cache mutation/eviction, country switching and explanation equivalence.
+
 # 0.20.1 - Fix live-audit matching gaps
 
 - Exclude explicitly hybrid/on-site jobs from remote-only searches even when a source supplies a conflicting remote flag; apply the correction to existing feed snapshots as well as new Ashby downloads.

@@ -23,3 +23,9 @@ test('search text cache reflects edits and does not reuse another job with the s
  assert.equal(filterResults([job],{query:'onsite'}).length,1);
  assert.equal(filterResults([{...job,description:'Python'}],{query:'python'}).length,1);
 });
+
+test('reused explanation checks match standalone calculations for each country and profile',async()=>{
+ const {explainMatch}=await import('../lib.mjs');const enrich=createJobEnricher();
+ const job={title:'Junior Developer',description:'Minimum 5 years of experience. Must be based in Germany.',location:'Worldwide',company:'Example',tags:['Python'],remote:true};
+ for(const country of ['CY','DE'])for(const level of ['Intern / Junior','Any level']){const p={country,level,role:'Software developer',skills:'Python'};assert.deepEqual(enrich(job,{},country,p).matchReasons,explainMatch(job,p));}
+});

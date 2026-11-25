@@ -20,3 +20,13 @@ test('enrichment invalidates location labels after a country change',()=>{const 
 test('backups retain country and model while old backups retain Cyprus defaults',()=>{const p={name:'Test',preferences:{country:'GR',model:'qwen3:4b',area:'local'},saved:{},reviews:{}};const result=readBackup(makeBackup({profiles:[p]}))[0];assert.equal(result.preferences.country,'GR');assert.equal(result.preferences.model,'qwen3:4b');assert.equal(result.setupComplete,true);delete p.preferences.country;assert.equal(readBackup(makeBackup({profiles:[p]}))[0].preferences.country,'CY');});
 
 test('country names contained in longer countries do not create false local leads',()=>{assert.equal(countryListed('Equatorial Guinea','GN'),false);assert.equal(countryListed('Equatorial Guinea','GQ'),true);assert.equal(countryListed('South Georgia & South Sandwich Islands','GE'),false);assert.equal(countryListed('United States Minor Outlying Islands','US'),false);assert.equal(countryListed('London, USA','GB'),false);assert.equal(countryListed('United Kingdom, United States','US'),true);});
+
+test('country cache remains correct across country switches, caller mutation and eviction',async()=>{
+ const {explicitCountries}=await import('../countries.mjs');
+ const first=explicitCountries('Cyprus, Germany');first.length=0;
+ assert.deepEqual(new Set(explicitCountries('Cyprus, Germany')),new Set(['CY','DE']));
+ assert.equal(countryListed('Cyprus, Germany','US'),false);assert.equal(countryListed('Cyprus, Germany','DE'),true);
+ for(let i=0;i<600;i++)explicitCountries('Unspecified district '+i);
+ assert.deepEqual(new Set(explicitCountries('Cyprus, Germany')),new Set(['CY','DE']));
+ assert.equal(countryListed('Equatorial Guinea','GN'),false);
+});

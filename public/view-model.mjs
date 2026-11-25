@@ -40,7 +40,8 @@ export function createJobEnricher(){
  return (job,cv,country='CY',preferences={})=>{
   const cvText=cv?.text||'',prefKey=JSON.stringify([preferences.role,preferences.level,preferences.years,preferences.skills]),hit=cache.get(job);
   if(hit?.cvText===cvText&&hit.country===country&&hit.prefKey===prefKey)return hit.value;
-  const value={...job,requirements:applicationRequirements(job),experience:experienceSignals(job),locationCheck:locationSignals(job,country),cvMatch:compareCv(job,cv||{}),matchReasons:explainMatch(job,{...preferences,country})};
+  const experience=experienceSignals(job),locationCheck=locationSignals(job,country);
+  const value={...job,requirements:applicationRequirements(job),experience,locationCheck,cvMatch:compareCv(job,cv||{}),matchReasons:explainMatch(job,{...preferences,country},{experience,locationCheck})};
   const record={cvText,country,prefKey,value};cache.set(job,record);cache.set(value,record);return value;
  };
 }

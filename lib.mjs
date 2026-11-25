@@ -33,8 +33,8 @@ export function roleMatches(job,role='Software developer'){
  if(role==='Backend developer'&&!/back.?end|full.?stack/i.test(title)&&(!/\b(?:developer|engineer|programmer)\b/i.test(title)||/front.?end|\bjavascript\b|\bdata\b|scientist|machine learning|\bmobile\b|\bios\b|\bandroid\b/i.test(title)&&! /\bnode(?:\.js)?\b/i.test(title)))return false;
  return (roles[role]||roles['Software developer']).test(title);
 }
-export function explainMatch(job,p={}){
- const country=p.country||'CY',location=locationSignals(job,country),experience=experienceSignals(job),skills=[...new Set(String(p.skills||'').split(',').map(s=>s.trim()).filter(Boolean))];
+export function explainMatch(job,p={},checks={}){
+ const country=p.country||'CY',location=checks.locationCheck??locationSignals(job,country),experience=checks.experience??experienceSignals(job),skills=[...new Set(String(p.skills||'').split(',').map(s=>s.trim()).filter(Boolean))];
  const hay=[job.title,job.description,...(job.tags||[])].join(' ').toLowerCase(),hits=skills.filter(s=>skillMention(hay,s.toLowerCase())),years=p.years!==''&&p.years!==undefined?Number(p.years):p.level==='Intern / Junior'?2:null;
  const levelConflict=p.level==='Intern / Junior'&&['experienced','conflict','mixed'].includes(experience.category)||p.level==='Mid-level'&&/\b(?:junior|intern|senior|lead|principal|staff|manager|architect|founding)\b/i.test(job.title);
  const role=roleMatches(job,p.role),above=years!==null&&Number.isFinite(years)&&experience.minimumYears!==null&&experience.minimumYears>years;
@@ -50,8 +50,7 @@ export function matchJobs(jobs,p={}) {
  const skills=[...new Set(String(p.skills||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean))];
  const userYears=p.years!==''&&p.years!==undefined&&Number.isFinite(Number(p.years))?Number(p.years):null;
  const yearLimit=userYears??(p.level==='Intern / Junior'?2:null);
- return jobs.map(j=>({...j,remote:j.remote===true&&!/^(?:hybrid|on[- ]?site)$/i.test(j.work||''),experience:experienceSignals(j),locationCheck:locationSignals(j,p.country)})).filter(j=>{
-  if (!roleMatches(j,p.role)) return false;
+ return jobs.filter(j=>roleMatches(j,p.role)).map(j=>({...j,remote:j.remote===true&&!/^(?:hybrid|on[- ]?site)$/i.test(j.work||''),experience:experienceSignals(j),locationCheck:locationSignals(j,p.country)})).filter(j=>{
   if(p.level==='Intern / Junior'&&p.juniorEvidence==='explicit'&&j.experience.category!=='junior')return false;
   if(p.level==='Intern / Junior'&&p.juniorEvidence==='early'&&!['junior','early'].includes(j.experience.category))return false;
   const cy=j.locationCheck.countryListed;

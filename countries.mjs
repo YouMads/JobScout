@@ -39,10 +39,17 @@ const escaped=s=>s.replace(/[.*+?^{}$()|[\]\\]/g,'\\$&');
 const patterns=new Map();
 const countryTerms=countries.flatMap(c=>[c.name,...(presets[c.code]?.aliases||[])].map(name=>({code:c.code,name}))).sort((a,b)=>b.name.length-a.name.length);
 const contains=(text,term)=>{if(!patterns.has(term))patterns.set(term,new RegExp('(^|[^\\p{L}\\p{N}])'+escaped(term)+'(?=$|[^\\p{L}\\p{N}])','iu'));return patterns.get(term).test(text);};
+// Bounded cache for repeated public location/restriction text, shared across country choices.
+// Return copies so callers cannot corrupt a later country check.
+const explicitCountryCache=new Map();
 export function explicitCountries(location){
- const text=String(location||''),explicit=[];let remaining=text;
+ const text=String(location||''),explicit=[];
+ const hit=explicitCountryCache.get(text);if(hit)return [...hit];
+ let remaining=text;
  for(const term of countryTerms)if(contains(remaining,term.name)){explicit.push(term);remaining=remaining.replace(new RegExp(escaped(term.name),'giu'),match=>'#'.repeat(match.length));}
- return [...new Set(explicit.map(term=>term.code))];
+ const result=[...new Set(explicit.map(term=>term.code))];
+ if(text.length<=2048){if(explicitCountryCache.size>=512)explicitCountryCache.delete(explicitCountryCache.keys().next().value);explicitCountryCache.set(text,result);}
+ return [...result];
 }
 export function countryListed(location,code='CY'){
  const c=countryInfo(code),text=String(location||'');

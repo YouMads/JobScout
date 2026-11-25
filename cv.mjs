@@ -11,7 +11,7 @@ export async function extractCv(bytes){
    const finish=(error,value)=>{if(settled)return;settled=true;clearTimeout(timer);worker.terminate();error?reject(error):resolve(value);};
    const timer=setTimeout(()=>finish(Error('PDF extraction timed out. Paste the CV text instead.')),20000);
    worker.once('message',v=>finish(v.error?Error('Could not read this PDF. Use an unlocked text PDF or paste its text. '+(v.error.includes('20 pages')?'Maximum 20 pages.':'')):null,v));
-   worker.once('error',()=>finish(Error('PDF extraction could not finish. Paste the CV text instead.')));
+   worker.once('error',cause=>finish(Error('PDF extraction could not finish. Paste the CV text instead.',{cause})));
    worker.once('exit',()=>{if(!settled)finish(Error('PDF extraction stopped. Paste the CV text instead.'));});
   });
  }else{

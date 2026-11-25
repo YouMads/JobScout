@@ -1,3 +1,11 @@
+# 0.20.1 - Fix live-audit matching gaps
+
+- Exclude explicitly hybrid/on-site jobs from remote-only searches even when a source supplies a conflicting remote flag; apply the correction to existing feed snapshots as well as new Ashby downloads.
+- Include iOS, Android and mobile engineering titles in Software developer searches. Include generic Staff/Principal Engineer titles only with software evidence in their descriptions.
+- Extract possessive years, technology-specific development experience and engineering-fundamentals ranges while retaining preferred/required distinctions and company-history exclusions.
+- Verify all 11 targeted checks against the saved November 20 audit snapshot and add independent synthetic regression tests.
+- Correct the displayed app version.
+
 # 0.20.0 - Application requirements at a glance
 
 - Add a Before you apply panel with evidence excerpts for work authorization, visa sponsorship and language expectations.

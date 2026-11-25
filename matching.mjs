@@ -6,6 +6,12 @@ export function experienceSignals(job){
  const number='(\\d{1,2}|zero|one|two|three|four|five|six|seven|eight|nine|ten)';
  const years=number+'(?:\\s*(?:[-–]|to)\\s*(?:\\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten))?\\s*\\+?\\s+years?';
  const patterns=[new RegExp(years+'(?:\\s+of)?\\s+(?:(?:relevant|professional|commercial|hands[- ]on|work|software|development|industry|proven|engineering)\\s+){0,4}experience','gi'),new RegExp('experience\\s*(?:of|:)?\\s*(?:at least|minimum(?: of)?)?\\s*'+number+'\\s*\\+?\\s+years?','gi'),new RegExp(years+'\\s+(?:in|with|building|developing|using|working)\\b','gi')];
+ // Common technology-specific and possessive forms found in the live audit.
+ const technical='(?:professional|commercial|hands[- ]on|front[- ]?end|back[- ]?end|native|PHP|C\\+\\+|C#|JavaScript|TypeScript|Java|Python|iOS|Android|software|engineering|development|or|similar|\\(\\d{1,2}\\+?\\))';
+ patterns.push(new RegExp(years+"['’]\\s*experience",'gi'));
+ patterns.push(new RegExp(years+'\\s+of\\s+(?:'+technical+'\\s+){1,7}experience','gi'));
+ patterns.push(new RegExp(years+'\\s+of\\s+(?:(?:professional|commercial|native)\\s+)?(?:(?:front[- ]?end|back[- ]?end|PHP|C\\+\\+|C#|Java|Python|iOS|Android)\\s+)?development\\b','gi'));
+ patterns.push(new RegExp('(?:software engineering|programming|software development)\\s+(?:fundamentals|experience)\\s*\\('+years+'\\)','gi'));
  const optional=/nice[ -]to[ -]have|preferred|preferably|desirable|a plus|an advantage|bonus|ideally/i;
  const hits=[],preferred=[],alternatives=[];let optionalSection=false;
  for(const block of jobBlocks(job)){

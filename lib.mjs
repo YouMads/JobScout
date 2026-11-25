@@ -26,6 +26,10 @@ const roles={
 export function roleMatches(job,role='Software developer'){
  const title=String(job.title||'');if(role==='Any role')return true;
  if(/business develop|developer (?:relations|advocate)|sales engineer/i.test(title))return false;
+ if(role==='Software developer'){
+  if(/\b(?:ios|android|mobile)\s+(?:software\s+)?engineers?\b/i.test(title))return true;
+  if(/^(?:senior\s+)?(?:staff|principal) engineer$/i.test(title.trim())&&/\b(?:software engineering|backend (?:systems|architecture)|distributed systems|codebase|software development)\b/i.test(job.description||''))return true;
+ }
  if(role==='Backend developer'&&!/back.?end|full.?stack/i.test(title)&&(!/\b(?:developer|engineer|programmer)\b/i.test(title)||/front.?end|\bjavascript\b|\bdata\b|scientist|machine learning|\bmobile\b|\bios\b|\bandroid\b/i.test(title)&&! /\bnode(?:\.js)?\b/i.test(title)))return false;
  return (roles[role]||roles['Software developer']).test(title);
 }
@@ -35,7 +39,7 @@ export function explainMatch(job,p={}){
  const levelConflict=p.level==='Intern / Junior'&&['experienced','conflict','mixed'].includes(experience.category)||p.level==='Mid-level'&&/\b(?:junior|intern|senior|lead|principal|staff|manager|architect|founding)\b/i.test(job.title);
  const role=roleMatches(job,p.role),above=years!==null&&Number.isFinite(years)&&experience.minimumYears!==null&&experience.minimumYears>years;
  return [
- {kind:role?'match':'check',label:'Role',text:role?'Title matches '+(p.role||'Software developer')+'.':'Title does not match your current role filter.'},
+ {kind:role?'match':'check',label:'Role',text:role?'Listing matches '+(p.role||'Software developer')+'.':'Title does not match your current role filter.'},
  {kind:location.restrictionConflict||location.tzExcluded?'conflict':location.confirmedLead?'match':'check',label:'Location',text:location.label+'.'+(location.restrictionConflict?' '+location.restrictionEvidence:'')},
  {kind:above||levelConflict?'conflict':experience.category==='unknown'||experience.alternativeEvidence?'check':'match',label:'Experience',text:above?experience.minimumYears+'+ required years exceeds your '+years+'-year limit.':levelConflict?'Listing seniority conflicts with your '+p.level+' filter.':experience.alternativeEvidence?experience.label+'. '+experience.alternativeEvidence:experience.levelLabel+'. '+experience.label+'.'},
  {kind:hits.length?'match':'check',label:'Skills',text:skills.length?hits.length+' of '+skills.length+' search skills mentioned'+(hits.length?': '+hits.slice(0,6).join(', '):'')+'.':'Add skills to compare keyword mentions.'}
@@ -46,7 +50,7 @@ export function matchJobs(jobs,p={}) {
  const skills=[...new Set(String(p.skills||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean))];
  const userYears=p.years!==''&&p.years!==undefined&&Number.isFinite(Number(p.years))?Number(p.years):null;
  const yearLimit=userYears??(p.level==='Intern / Junior'?2:null);
- return jobs.map(j=>({...j,experience:experienceSignals(j),locationCheck:locationSignals(j,p.country)})).filter(j=>{
+ return jobs.map(j=>({...j,remote:j.remote===true&&!/^(?:hybrid|on[- ]?site)$/i.test(j.work||''),experience:experienceSignals(j),locationCheck:locationSignals(j,p.country)})).filter(j=>{
   if (!roleMatches(j,p.role)) return false;
   if(p.level==='Intern / Junior'&&p.juniorEvidence==='explicit'&&j.experience.category!=='junior')return false;
   if(p.level==='Intern / Junior'&&p.juniorEvidence==='early'&&!['junior','early'].includes(j.experience.category))return false;

@@ -46,7 +46,7 @@ export function parseAshby(d,{board,company,name}){
  return d.jobs.filter(j=>j.isListed===true).map(j=>({
   id:`${board}-${j.id||createHash('sha256').update(j.jobUrl||j.title).digest('hex').slice(0,20)}`,title:text(j.title),company,
   location:[...new Set([location(j.location,j.address),...(j.secondaryLocations||[]).map(l=>location(l.location,l.address))].filter(Boolean))].join(' / '),
-  remote:j.isRemote===true||j.workplaceType==='Remote',work:({Remote:'Remote',Hybrid:'Hybrid',OnSite:'On-site'})[j.workplaceType]||(j.isRemote===true?'Remote':'Unspecified'),
+  remote:j.workplaceType==='Remote'||(!['Hybrid','OnSite'].includes(j.workplaceType)&&j.isRemote===true),work:({Remote:'Remote',Hybrid:'Hybrid',OnSite:'On-site'})[j.workplaceType]||(j.isRemote===true?'Remote':'Unspecified'),
   ...descriptionFields(j.descriptionHtml||j.descriptionPlain),url:safeUrl(j.jobUrl),tags:[j.department,j.team,j.employmentType].filter(Boolean).map(text),
   salary:j.shouldDisplayCompensationOnJobPostings===false?'':text(j.compensation?.scrapeableCompensationSalarySummary||j.compensation?.compensationTierSummary),date:date(j.publishedAt),dateLabel:'Posted',source:name
  }));
@@ -64,7 +64,7 @@ export const sources=[
  {...greenhouse('gitlab','GitLab'),optional:true,coverage:'GitLab employer feed; country restrictions apply. Optional download.'},
  greenhouse('wheely','Wheely'),greenhouse('wrike','Wrike'),
  ashby('fayaracareers','Fayara'),ashby('welltech','Welltech'),ashby('talos-trading','Talos'),ashby('scorewarrior','Scorewarrior')
-].map(s=>({...s,formatVersion:s.name==='Himalayas'?4:3}));
+].map(s=>({...s,formatVersion:s.name==='Himalayas'||s.url.includes('ashbyhq.com')?4:3}));
 
 export function sourcesForCountry(code){const c=countryInfo(code);return sources.map(s=>s.name==='Himalayas'?{...s,url:s.url.replace('country=CY','country='+c.code),cacheKey:s.name+':'+c.code,coverage:'First 3 pages of software jobs returned for '+c.name+'; verify restrictions'}:s);}
 export function recommendedSources(code){return sourcesForCountry(code).filter(s=>!s.optional&&(countryInfo(code).code==='CY'||['Remotive','Jobicy','Himalayas','Remote OK'].includes(s.name))).map(s=>s.name);}

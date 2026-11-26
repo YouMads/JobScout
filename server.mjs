@@ -82,8 +82,8 @@ const server=http.createServer(async(req,res)=>{
   if(req.method==='POST'&&url.pathname==='/api/search'){
 
    const p=normalizeCountryPreferences(await body(req)),enabled=normalizeEnabled(p.sources),selected=sourcesForCountry(p.country).filter(s=>enabled===null||enabled.includes(s.name));await refresh(selected);
-   const names=new Set(selected.map(feedKey)),unique=deduplicate(cache.jobs.filter(j=>names.has(jobFeedKey(j))));
-   send(res,200,{updated:cache.updated,jobs:matchJobs(unique.filter(job=>!isExpired(job)),p),sources:cache.sources.filter(s=>names.has(feedKey(s))),total:unique.length});return;
+   const names=new Set(selected.map(feedKey)),unique=deduplicate(cache.jobs.filter(j=>names.has(jobFeedKey(j))&&!isExpired(j)));
+   send(res,200,{updated:cache.updated,jobs:matchJobs(unique,p),sources:cache.sources.filter(s=>names.has(feedKey(s))),total:unique.length});return;
   }
   if(req.method==='POST'&&url.pathname==='/api/scan/collect'){
    const input=await body(req);

@@ -1,3 +1,12 @@
+# 0.22.0 - Source availability and safer vacancy grouping
+
+- Explain blocked access, request limits, robots exclusions, browser checks, redirects and source failures without claiming a vacancy is closed.
+- Require a past expiry for Himalayas closed responses; redirected pages cannot verify the original listing even if they contain copied structured data.
+- Let users check each grouped source separately. Keep a group visible when only one source reports closure, and filter expired feed records before grouping.
+- Match known employer requisition aliases while keeping different requisitions, locations, restrictions and conflicting work arrangements separate. Avoid merges based on missing identities or generic locations.
+- Preserve original source links and location/work labels, prevent conflicting transitive merges, and keep duplicate counts stable when regrouping. Source metadata survives backups.
+- Add regression coverage for redirects, transient errors, per-source filtering and duplicate identity boundaries; verify the grouped-source flow in an isolated browser.
+
 # 0.21.1 - Quick actions
 
 - Add a searchable quick-action menu for jobs, applications, CV, websites, saved searches, country settings and backups.

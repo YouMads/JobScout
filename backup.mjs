@@ -26,8 +26,9 @@ export function readBackup(data){
    job.fetchedAt=expiryISO(j.fetchedAt);job.expiresAt=expiryISO(j.expiresAt);
    if(Array.isArray(j.descriptionBlocks))job.descriptionBlocks=normalizeBlocks(j.descriptionBlocks);
    if(Array.isArray(j.timezoneRestrictions))job.timezoneRestrictions=j.timezoneRestrictions.filter(n=>Number.isFinite(n)&&n>=-12&&n<=14);
-   if(Array.isArray(j.sourceLinks))job.sourceLinks=j.sourceLinks.slice(0,15).filter(l=>object(l)&&link(l.url)).map(l=>({name:str(l.name,100),url:link(l.url)}));
+   if(Array.isArray(j.sourceLinks))job.sourceLinks=j.sourceLinks.slice(0,15).filter(l=>object(l)&&link(l.url)).map(l=>({name:str(l.name,100),url:link(l.url),location:str(l.location,2000),work:str(l.work,40)}));
    if(!job.sourceLinks?.length)job.sourceLinks=[{name:job.source,url:job.url}];
+   job.duplicateCount=new Set(job.sourceLinks.map(l=>l.url)).size;
    saved[key]={job,...normalizePlan(s),stage:APPLICATION_STAGES.includes(s.stage)?s.stage:'Saved',notes:str(s.notes,3000),savedAt:str(s.savedAt,60)};
   }
   for(const [key,r]of Object.entries(p.reviews)){

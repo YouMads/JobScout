@@ -97,6 +97,7 @@ export function publicFeed(value){
   url.hostname==='himalayas.app'&&/^\/jobs\/api\/companies\/[a-zA-Z0-9_-]+\/jobs\/[a-zA-Z0-9_-]+$/.test(url.pathname)||
   url.hostname==='api.ashbyhq.com'&&/^\/posting-api\/job-board\/[a-zA-Z0-9_-]+$/.test(url.pathname));
 }
+const readerError=(message,code)=>Object.assign(Error(message),{code});
 export function createPublicReader({request=requestOnce,wait=pause,signal,allowNotFound=false}={}){
  const policies=new Map(),lastRequest=new Map();
  async function raw(value,limit=MAX_BYTES){
@@ -112,7 +113,7 @@ export function createPublicReader({request=requestOnce,wait=pause,signal,allowN
  async function policy(url){
   if(!policies.has(url.origin)){
    const response=await raw(new URL('/robots.txt',url),256*1024);
-   if(response.status===401||response.status===403||response.status===429||response.status>=500)throw Error('The website does not currently allow an automated scan. Paste the visible listing text instead.');
+   if(response.status===401||response.status===403||response.status===429||response.status>=500)throw readerError('The website does not currently allow an automated scan. Paste the visible listing text instead.',response.status===429?'rate_limited':response.status>=500?'server_error':'access_blocked');
    const rules=response.status>=200&&response.status<300?robotsRules(response.body):{rules:[],delay:0};
    if(rules.delay>10)throw Error('This website requests a slower crawl. Paste the careers-page text instead.');
    policies.set(url.origin,rules);
@@ -123,19 +124,19 @@ export function createPublicReader({request=requestOnce,wait=pause,signal,allowN
   let url=scanUrl(value);
   for(let redirect=0;redirect<4;redirect++){
    signal?.throwIfAborted();const rules=publicFeed(url)?{rules:[],delay:0}:await policy(url);
-   if(!robotsAllow(rules.rules,url))throw Error('This page asks automated readers not to scan it. Paste the visible text instead.');
+   if(!robotsAllow(rules.rules,url))throw readerError('This page asks automated readers not to scan it. Paste the visible text instead.','robots_blocked');
    const interval=Math.max(650,rules.delay*1000),elapsed=Date.now()-(lastRequest.get(url.origin)||0);
    if(elapsed<interval)await wait(interval-elapsed,signal);
    signal?.throwIfAborted();
    lastRequest.set(url.origin,Date.now());
    const response=await request(url,{signal});
    if([301,302,303,307,308].includes(response.status)){if(!response.headers.location)throw Error('Website redirected without a page address.');url=scanUrl(response.headers.location,url);continue;}
-   if([401,403,429].includes(response.status))throw Error('This page needs sign-in, blocks automated access, or is rate limited. Paste its text instead.');
+   if([401,403,429].includes(response.status))throw readerError('This page needs sign-in, blocks automated access, or is rate limited. Paste its text instead.',response.status===429?'rate_limited':'access_blocked');
    if(allowNotFound&&[404,410].includes(response.status))return {...response,url:url.href};
-   if(response.status<200||response.status>=300)throw Error('Website returned HTTP '+response.status+'.');
+   if(response.status<200||response.status>=300)throw readerError('Website returned HTTP '+response.status+'.',response.status>=500?'server_error':'http_error');
    const type=String(response.headers['content-type']||'').toLowerCase();
    if(!/text\/html|application\/xhtml\+xml|application\/json|text\/plain/.test(type))throw Error('Use a public web page, not a download or media file.');
-   if(/<title[^>]*>\s*(?:Just a moment|Access denied|Attention Required)|cf-chl-|captcha-container|challenge-platform/i.test(response.body))throw Error('This website requires a browser check. Open it yourself and paste the careers-page text.');
+   if(/<title[^>]*>\s*(?:Just a moment|Access denied|Attention Required)|cf-chl-|captcha-container|challenge-platform/i.test(response.body))throw readerError('This website requires a browser check. Open it yourself and paste the careers-page text.','browser_check');
    return {...response,url:url.href};
   }
   throw Error('This website redirected too many times. Paste its final link.');

@@ -24,3 +24,33 @@ test('status records survive backups without changing notes, stages or unrelated
 test('availability filtering keeps unknown links and never mutates saved stages',()=>{const availability=recordAvailability({},job,{state:'closed',url:job.url,checkedAt:new Date(now).toISOString(),via:'page'}),other={...job,id:'two',url:'https://example.org/2'};assert.deepEqual(filterResults([job,other],{availability,freshness:'exclude_closed'}).map(j=>j.id),['two']);assert.equal(filterResults([job,other],{availability}).length,2);});
 
 test('a matching explicit closure notice overrides stale active structured data',()=>{const active=ld({'@type':'JobPosting',title:job.title,url:job.url,validThrough:'2030-01-01'});assert.equal(classify(active+'<h1>Junior Developer</h1><p>This job is no longer accepting applications.</p>').state,'closed');});
+
+test('redirects with copied structured data remain unverified and future 410 dates do not confirm expiry',()=>{
+ const body=ld({'@type':'JobPosting',title:job.title,url:job.url,validThrough:'2020-01-01'});
+ const result=classifyCheck(job,response(body,200,'https://example.org/careers'),checkTarget(job.url),now);
+ assert.equal(result.state,'unknown');assert.equal(result.reason,'redirected');
+ const j={...job,url:'https://himalayas.app/companies/acme/jobs/dev'},target=checkTarget(j.url);
+ assert.equal(classifyCheck(j,response(JSON.stringify({expiryDate:'2030-01-01'}),410,target.url),target,now).state,'unavailable');
+});
+test('failed checks retain specific explanations without inventing a closure',async()=>{
+ for(const [status,reason]of [[403,'access_blocked'],[429,'rate_limited'],[503,'server_error']]){
+  const reader=createPublicReader({allowNotFound:true,request:async url=>String(url).endsWith('/robots.txt')?response('',404):response('',status)});
+  const result=await checkVacancy(job,{reader,now});assert.equal(result.state,'unknown');assert.equal(result.reason,reason);
+  const restored=recordAvailability({},job,result)[availabilityKey(job)];assert.equal(restored.reason,reason);
+ }
+ const network=await checkVacancy(job,{now,reader:async()=>{throw Error('socket timed out')}});assert.equal(network.reason,'read_failed');
+});
+test('one closed source never hides a group with unchecked, unavailable or listed alternatives',()=>{
+ const other={...job,url:'https://other.org/jobs/one'},group={...job,sourceLinks:[{name:'Original',url:job.url},{name:'Other',url:other.url}]};
+ let records=recordAvailability({},job,{state:'closed',url:job.url,checkedAt:new Date(now).toISOString()});
+ assert.equal(freshnessFor(group,records,now).state,'unknown');assert.equal(filterResults([group],{availability:records,freshness:'exclude_closed'}).length,1);
+ for(const state of ['unavailable','unknown','listed']){const next=recordAvailability(records,other,{state,url:other.url,checkedAt:new Date(now).toISOString()});assert.notEqual(freshnessFor(group,next,now).state,'closed');}
+ records=recordAvailability(records,other,{state:'closed',url:other.url,checkedAt:new Date(now).toISOString()});assert.equal(freshnessFor(group,records,now).state,'closed');assert.equal(filterResults([group],{availability:records,freshness:'exclude_closed'}).length,0);
+});
+
+test('group source labels and links survive a workspace backup',()=>{
+ const grouped={...job,sourceLinks:[{name:'One',url:job.url,location:'Cyprus',work:'Remote'},{name:'Two',url:'https://other.org/1',location:'Cyprus / remote',work:'Remote'}]};
+ const profile={name:'Test',preferences:{},saved:{one:{job:grouped,stage:'Saved',notes:'Keep me'}},reviews:{}};
+ const restored=readBackup(makeBackup({profiles:[profile]}))[0].saved.one;
+ assert.deepEqual(restored.job.sourceLinks,grouped.sourceLinks);assert.equal(restored.job.duplicateCount,2);assert.equal(restored.notes,'Keep me');
+});

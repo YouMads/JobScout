@@ -141,7 +141,7 @@ function requirementsHTML(job){
 }
 function sourceBadges(job) {
   const links = job.sourceLinks || [{name:job.source, url:job.url}];
-  return `${job.duplicateCount>1?'<p class="duplicate-note">'+job.duplicateCount+' matching listings combined · all sources below</p>':''}<div class="website-badges"><span>VIA</span>${links.map(s => `<a class="website-badge" href="${esc(safeLink(s.url))}" target="_blank" rel="noopener noreferrer">${esc(s.name)} ↗</a>`).join('')}</div>`;
+  return `${job.duplicateCount>1?'<p class="duplicate-note">'+job.duplicateCount+' matching listings combined · all sources below</p>':''}<div class="website-badges"><span>VIA</span>${links.map(s => `<a class="website-badge" title="${esc([s.name,s.location,s.work].filter(Boolean).join(' · '))}" href="${esc(safeLink(s.url))}" target="_blank" rel="noopener noreferrer">${esc(s.name)} ↗</a>`).join('')}</div>`;
 }
 const bookmark = saved => `<svg viewBox="0 0 16 20" aria-hidden="true"><path d="M3 1.5h10a1.5 1.5 0 0 1 1.5 1.5v15L8 14l-6.5 4V3A1.5 1.5 0 0 1 3 1.5Z" fill="${saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.5"/></svg>`;
 function card(raw) {
@@ -1059,10 +1059,13 @@ function freshnessHTML(job){
  const f=freshnessFor(job,current().availability),stamp=f.checkedAt||f.fetchedAt;
  return '<div class="listing-freshness state-'+esc(f.state)+'"><span>'+esc(f.label)+'</span><small>'+(stamp?esc((f.checkedAt?'Checked ':'Feed retrieved ')+new Date(stamp).toLocaleString()):'Open the listing to check')+'</small></div>';
 }
-function updateAvailability(){
+function updateAvailability(sourceUrl){
  const target=$('#listing-availability');if(!target||!selectedJob||selectedJobOwner!==current().id)return;
- const job=selectedJob,f=freshnessFor(job,current().availability),running=availabilityRun?.key===availabilityKey(job)&&availabilityRun?.owner===current().id;
- target.innerHTML='<section class="availability-panel" aria-label="Source availability"><div><span class="method-label method-auto">SOURCE CHECK · NO AI</span><h3>'+esc(f.label)+'</h3></div><button id="check-listing" class="secondary" '+(availabilityRun?'disabled':'')+'>'+(running?'Checking source…':availabilityRun?'Another check is running':'↻ Check listing status')+'</button><p role="status">'+esc(running?'Reading this listing or its public job API…':f.note||f.hint)+'</p>'+(f.evidence?'<blockquote>'+esc(f.evidence)+'</blockquote>':'')+'<small>'+(f.checkedAt?'Checked '+esc(new Date(f.checkedAt).toLocaleString())+'. ':f.fetchedAt?'Last retrieved from the feed '+esc(new Date(f.fetchedAt).toLocaleString())+'. ':'')+(f.old?'This result is over a day old. ':'')+'Checks may reuse a result for 10 minutes. Your application stage and notes are kept.'+(job.sourceLinks?.length>1?' This check covers the primary source link; other source links may differ.':'')+'</small></section>';
+ const links=[...new Map([{name:selectedJob.source,url:selectedJob.url},...(selectedJob.sourceLinks||[])].map(link=>[canonicalListingUrl(link.url),link])).values()];
+ const chosen=sourceUrl||$('#availability-source')?.value||selectedJob.url;
+ const job={...selectedJob,url:links.some(link=>link.url===chosen)?chosen:selectedJob.url,sourceLinks:[],expiresAt:chosen===selectedJob.url?selectedJob.expiresAt:''},f=freshnessFor(job,current().availability),running=availabilityRun?.key===availabilityKey(job)&&availabilityRun?.owner===current().id;
+ target.innerHTML='<section class="availability-panel" aria-label="Source availability">'+(links.length>1?'<label class="availability-source-label">Check a source link<select id="availability-source">'+links.map(link=>'<option value="'+esc(link.url)+'" '+(link.url===job.url?'selected':'')+'>'+esc(link.name||'Source')+'</option>').join('')+'</select></label>':'')+'<div><span class="method-label method-auto">SOURCE CHECK · NO AI</span><h3>'+esc(f.label)+'</h3></div><button id="check-listing" class="secondary" '+(availabilityRun?'disabled':'')+'>'+(running?'Checking source…':availabilityRun?'Another check is running':'↻ Check listing status')+'</button><p role="status">'+esc(running?'Reading this listing or its public job API…':f.note||f.hint)+'</p>'+(f.evidence?'<blockquote>'+esc(f.evidence)+'</blockquote>':'')+'<small>'+(f.checkedAt?'Checked '+esc(new Date(f.checkedAt).toLocaleString())+'. ':f.fetchedAt?'Last retrieved from the feed '+esc(new Date(f.fetchedAt).toLocaleString())+'. ':'')+(f.old?'This result is over a day old. ':'')+'Checks may reuse a result for 10 minutes. Your application stage and notes are kept.'+(links.length>1?' This checks only the selected source. Other links keep their own status; a single closure does not hide the whole group.':'')+'</small></section>';
+ if($('#availability-source'))$('#availability-source').onchange=event=>updateAvailability(event.target.value);
  $('#check-listing').onclick=()=>checkListing(job);
 }
 async function checkListing(job){

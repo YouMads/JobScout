@@ -4,6 +4,13 @@ import {canonicalListingUrl,titleIdentity} from './duplicates.mjs';
 import {text} from './lib.mjs';
 const sameTitle=(a,b)=>Boolean(titleIdentity(a)&&titleIdentity(a)===titleIdentity(b));
 const expiry=value=>Date.parse(expiryISO(value));
+const failureNotes={
+ access_blocked:'The website requires sign-in or blocks automated access. This does not mean the job is closed.',
+ rate_limited:'The website is limiting requests. Try again later; no closure was confirmed.',
+ robots_blocked:'The website asks automated readers not to check this page. Open it yourself to verify availability.',
+ server_error:'The source is temporarily failing. Try again later; no closure was confirmed.',
+ browser_check:'The website requires a browser verification step. Open the original link to check the role.'
+};
 export function checkTarget(value){
  const url=scanUrl(value),parts=url.pathname.split('/').filter(Boolean),host=url.hostname;
  if(['himalayas.app','www.himalayas.app'].includes(host)&&parts.length===4&&parts[0]==='companies'&&parts[2]==='jobs'&&parts.every(p=>/^[\w-]+$/.test(p)))return {kind:'himalayas',url:'https://himalayas.app/jobs/api'+url.pathname};
@@ -13,10 +20,12 @@ export function checkTarget(value){
 }
 export function classifyCheck(job,response,target,now=Date.now()){
  const base={state:'unknown',url:job.url,checkedAt:new Date(now).toISOString(),via:target.kind==='page'?'page':'api',note:'The page was readable, but this role’s current availability could not be verified.',evidence:''};
- if(target.kind!=='page'&&canonicalListingUrl(response.url)!==canonicalListingUrl(target.url))return {...base,note:'The source redirected to another address. Availability remains unverified.'};
+ if(canonicalListingUrl(response.url)!==canonicalListingUrl(target.url))return {...base,reason:'redirected',note:'The source redirected to another address, possibly a careers index. This does not confirm the role is open or closed.'};
  let data;try{data=JSON.parse(response.body);}catch{}
- if(response.status===410&&target.kind==='himalayas'&&Number.isFinite(expiry(data?.expiryDate)))return {...base,state:'closed',note:'Himalayas reports this listing has closed.',evidence:'Source returned closed status (410).'};
- if([404,410].includes(response.status))return {...base,state:'unavailable',note:'The source link is unavailable. It may have moved; this does not confirm the role has closed.',evidence:'HTTP '+response.status};
+ if(response.status===410&&target.kind==='himalayas'&&Number.isFinite(expiry(data?.expiryDate))&&expiry(data.expiryDate)<=now)return {...base,state:'closed',note:'Himalayas reports this listing has closed.',evidence:'Source returned closed status (410).'};
+ if([404,410].includes(response.status))return {...base,state:'unavailable',reason:'missing_link',note:'The source link is unavailable. It may have moved; this does not confirm the role has closed.',evidence:'HTTP '+response.status};
+ const failure=response.status===429?'rate_limited':[401,403].includes(response.status)?'access_blocked':response.status>=500?'server_error':'';
+ if(failure)return {...base,reason:failure,note:failureNotes[failure]};
  if(response.status!==200)return {...base,note:'The source could not confirm this listing. Open the website to check.'};
  if(target.kind!=='page'){
   const row=target.kind==='himalayas'?data?.job:data;
@@ -45,7 +54,7 @@ export async function checkVacancy(input,{reader,signal,now=Date.now()}={}){
  const job={url:scanUrl(input?.url).href,title:typeof input?.title==='string'?input.title.trim().slice(0,300):''};if(!job.title)throw Error('A job title is required to verify the listing.');
  const target=checkTarget(job.url),read=reader||createPublicReader({signal,allowNotFound:true});
  try{const response=await read(target.url);signal?.throwIfAborted();return classifyCheck(job,response,target,now);}
- catch(error){if(signal?.aborted)throw error;return {state:'unknown',url:job.url,checkedAt:new Date(now).toISOString(),via:target.kind==='page'?'page':'api',note:'Could not verify this listing automatically. It may be protected, unavailable or temporarily failing. Open the original website to check.',evidence:''};}
+ catch(error){if(signal?.aborted)throw error;return {state:'unknown',url:job.url,checkedAt:new Date(now).toISOString(),via:target.kind==='page'?'page':'api',reason:failureNotes[error.code]?error.code:'read_failed',note:failureNotes[error.code]||'The check could not finish (for example, a connection failure or timeout). Availability remains unverified. Open the original website or try again later.',evidence:''};}
 }
 export function createCheckCache({limit=200,ttl=10*60*1000,clock=Date.now}={}){
  const records=new Map(),key=job=>canonicalListingUrl(job.url)+'|'+titleIdentity(job.title);

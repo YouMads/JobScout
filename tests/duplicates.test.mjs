@@ -20,3 +20,25 @@ test('tracking parameters are ignored but job IDs and technical title distinctio
  assert.equal(sameVacancy({...base,title:'C# Developer'},{...base,title:'C++ Developer'}),false);
  assert.equal(sameVacancy({...base,url:'https://x.com/job?id=1'},{...base,url:'https://x.com/job?id=2'}),false);
 });
+
+test('known employer requisitions merge across board aliases but distinct IDs do not',()=>{
+ const a={...base,url:'https://boards.greenhouse.io/acme/jobs/123'};
+ assert.equal(deduplicate([a,{...base,source:'Other',url:'https://job-boards.greenhouse.io/acme/jobs/123'}]).length,1);
+ assert.equal(deduplicate([a,{...base,source:'Other',url:'https://job-boards.greenhouse.io/acme/jobs/124'}]).length,2);
+ assert.equal(deduplicate([base,{...base,source:'Other',url:'https://one.com/jobs/2'}]).length,2);
+});
+test('vague identities and conflicting location restrictions never merge on boilerplate',()=>{
+ for(const patch of [{company:''},{title:''},{location:''},{location:'Unspecified'}])assert.equal(deduplicate([{...base,...patch},{...base,...patch,source:'Other',url:'https://two.com/job'}]).length,2);
+ for(const [a,b]of [['Europe except Cyprus','Cyprus except Europe'],['Worldwide UTC-3','Worldwide UTC+3']])assert.equal(deduplicate([{...base,location:a},{...base,location:b,source:'Other',url:'https://two.com/job'}]).length,2);
+ assert.equal(deduplicate([{...base,timezoneRestrictions:[-3]},{...base,timezoneRestrictions:[3],source:'Other',url:'https://two.com/job'}]).length,2);
+});
+test('an unspecified workplace cannot bridge remote and on-site vacancies',()=>{
+ const result=deduplicate([{...base,work:'Unspecified'},{...base,source:'Two',url:'https://two.com/1'},{...base,work:'On-site',source:'Three',url:'https://three.com/1'}]);
+ assert.equal(result.length,2);assert.equal(result[0].sourceLinks.length,2);
+});
+test('grouping preserves original links and source locations, without multiplying on regrouping',()=>{
+ const other={...base,source:'Other',url:'https://two.com/1',location:'Limassol / Cyprus'};
+ const grouped=deduplicate([base,other,base]);assert.equal(grouped.length,1);assert.equal(grouped[0].duplicateCount,2);
+ assert.equal(grouped[0].sourceLinks[1].location,other.location);assert.equal(grouped[0].sourceLinks[1].url,other.url);
+ assert.deepEqual(deduplicate(grouped),grouped);assert.equal(base.sourceLinks,undefined);
+});

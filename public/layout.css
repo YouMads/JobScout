@@ -161,3 +161,4 @@ footer {font-size:10px;padding:26px 0;margin-top:32px;gap:14px;flex-wrap:wrap;bo
 #quick-action-help,.quick-action-empty {font-size:11px;color:var(--muted);line-height:1.7;margin:8px 0 0}.quick-action-empty {padding:12px}
 @media(max-width:1200px) {.quick-launch kbd {display:none}.header-actions {gap:8px}}
 @media(max-width:680px) {.quick-launch {font-size:10px;padding:6px 8px;min-height:34px}.header-actions {flex-wrap:wrap;justify-content:flex-start}.profile-switch {margin-left:auto}#quick-actions-dialog {padding:18px}#quick-actions-dialog .dialog-head {margin:-18px -18px 14px;padding:14px 18px}.quick-action {min-height:60px}.quick-action-list {max-height:48dvh}}
+.availability-source-label {grid-column:1/-1;font-size:12px;margin:0}.availability-source-label select {max-width:100%;font-size:13px}

@@ -22,6 +22,7 @@ test('business development and service desk titles do not count as software deve
 });
 test('unsafe links and duplicate jobs are dropped; markup becomes text',()=>{
  assert.equal(safeUrl('javascript:alert(1)'), '');
- assert.equal(deduplicate([job('1','Developer','Cyprus'),job('2','Developer','Cyprus')]).length,1);
+ assert.equal(deduplicate([job('1','Developer','Cyprus'),job('2','Developer','Cyprus')]).length,2);
+ assert.equal(deduplicate([job('1','Developer','Cyprus'),job('1','Developer','Cyprus')]).length,1);
  assert.equal(text('&lt;p&gt;Python &amp; Django&lt;/p&gt;'),'Python & Django');
 });

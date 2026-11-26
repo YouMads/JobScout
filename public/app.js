@@ -1072,3 +1072,63 @@ async function checkListing(job){
  catch(error){if(owner===current().id)toast('Could not check the listing: '+error.message);}
  finally{availabilityRun=null;render();updateAvailability();}
 }
+
+// Quick navigation opens existing workspace tools; it never starts scans or AI work.
+const quickActions = [
+ {name:'Find jobs',hint:'Focus your search preferences',words:'search role filters opportunities',run:()=>{setView('discover');openFilters();$('#preferences [name=role]').focus({preventScroll:true});}},
+ {name:'My applications',hint:'Your saved roles and next steps',words:'saved shortlist stages notes followup',run:()=>{setView('saved');$('#results-title').scrollIntoView({block:'start'});$('#results-title').focus({preventScroll:true});}},
+ {name:'Your CV',hint:'Manage the CV for this profile',words:'resume curriculum skills',target:'#open-cv'},
+ {name:'Scan a website',hint:'Open the careers-page reader',words:'company link url ai',target:'#open-scanner'},
+ {name:'Company watchlist',hint:'Saved websites and scan history',words:'companies tracking alerts',target:'#open-websites'},
+ {name:'Job websites',hint:'Choose your search sources',words:'feeds sources providers',target:'#open-sources'},
+ {name:'Saved searches',hint:'Reuse your named filters',words:'presets repeat',target:'#open-saved-searches'},
+ {name:'Add a job yourself',hint:'Open the manual listing form',words:'paste import link manual',target:'#open-manual'},
+ {name:'Country & settings',hint:'Country setup and local AI settings',words:'setup wizard model ollama location',target:'#open-settings'},
+ {name:'Backups',hint:'Export or restore your workspace',words:'download data import export',target:'#open-backups'}
+];
+const quickDialog=$('#quick-actions-dialog'),quickQuery=$('#quick-action-query');
+let quickReturnFocus=null,quickRestoreFocus=true;
+quickDialog.addEventListener('close',()=>{
+ if(quickRestoreFocus&&!document.querySelector('dialog[open]')&&quickReturnFocus?.isConnected)quickReturnFocus.focus({preventScroll:true});
+});
+function renderQuickActions(){
+ const terms=quickQuery.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+ const visible=quickActions.map((action,index)=>({...action,index})).filter(action=>terms.every(term=>(action.name+' '+action.hint+' '+action.words).toLowerCase().includes(term)));
+ $('#quick-action-list').innerHTML=visible.length?visible.map(action=>`<button type="button" class="quick-action" data-quick-action="${action.index}"><span><strong>${esc(action.name)}</strong><small>${esc(action.hint)}</small></span><span aria-hidden="true">↗</span></button>`).join(''):'<p class="quick-action-empty">No matching actions. Try “CV”, “jobs” or “settings”.</p>';
+ $('#quick-action-count').textContent=`${visible.length} ${visible.length===1?'action':'actions'} available`;
+}
+function openQuickActions(){
+ // Keep an in-progress form or AI dialog in control of its own focus.
+ if(document.querySelector('dialog[open]'))return;
+ quickReturnFocus=document.activeElement;quickRestoreFocus=true;
+ quickQuery.value='';renderQuickActions();quickDialog.showModal();quickQuery.focus();
+}
+$('#open-quick-actions').onclick=openQuickActions;
+$('#close-quick-actions').onclick=()=>quickDialog.close();
+quickQuery.addEventListener('input',renderQuickActions);
+$('#quick-action-list').onclick=event=>{
+ const button=event.target.closest('[data-quick-action]');if(!button)return;
+ const action=quickActions[Number(button.dataset.quickAction)];if(!action)return;
+ quickRestoreFocus=false;quickDialog.close();
+ if(action.run){action.run();return;}
+ const target=$(action.target),drawer=target.closest('details');
+ if(drawer)drawer.open=true;
+ target.focus({preventScroll:true});target.click();
+};
+quickDialog.addEventListener('keydown',event=>{
+ if(event.key==='Escape'){event.preventDefault();event.stopPropagation();quickDialog.close();return;}
+ if(event.altKey||event.ctrlKey||event.metaKey)return;
+ const buttons=[...quickDialog.querySelectorAll('[data-quick-action]')];
+ const index=buttons.indexOf(document.activeElement);
+ if((event.key==='ArrowDown'||event.key==='ArrowUp')&&(document.activeElement===quickQuery||index>=0)){
+  event.preventDefault();if(!buttons.length)return;
+  const next=event.key==='ArrowDown'?(index+1)%buttons.length:(index<0?buttons.length-1:(index-1+buttons.length)%buttons.length);
+  buttons[next].focus();
+ }else if(event.key==='Enter'&&document.activeElement===quickQuery){event.preventDefault();buttons[0]?.click();}
+});
+document.addEventListener('keydown',event=>{
+ if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'&&!event.altKey&&!event.repeat){
+  if(quickDialog.open){event.preventDefault();quickDialog.close();}
+  else if(!document.querySelector('dialog[open]')){event.preventDefault();openQuickActions();}
+ }
+});

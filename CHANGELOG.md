@@ -1,3 +1,10 @@
+# 0.21.1 - Quick actions
+
+- Add a searchable quick-action menu for jobs, applications, CV, websites, saved searches, country settings and backups.
+- Support Ctrl/Cmd+K, arrow keys, Enter and Escape with focus restoration and protection for already-open dialogs.
+- Open existing tools without automatically starting scans, searches, AI work or exports.
+- Verify keyboard navigation, no-result handling and mobile/desktop widths using isolated browser profiles.
+
 # 0.21.0 - A clearer, quieter workspace
 
 - Redesign the black-and-gray dashboard with a compact overview, clearer search controls, refined job cards and a grouped search toolkit.

@@ -1,3 +1,11 @@
+# 0.21.0 - A clearer, quieter workspace
+
+- Redesign the black-and-gray dashboard with a compact overview, clearer search controls, refined job cards and a grouped search toolkit.
+- Bring the same spacing, typography and surfaces to job details, application drafts, setup and source selection; retain both light and dark themes.
+- Add brief result-entry and dialog animations, subtle hover feedback and accessible search busy states. Respect reduced-motion preferences and avoid replaying animations on every filter edit.
+- Improve mobile navigation, control wrapping and readable job details without adding fonts, animation packages or external requests.
+- Keep the PDF worker cleanup fix and repeated valid/empty/malformed PDF regression checks from the preceding maintenance update.
+
 # 0.20.2 - Faster matching and result preparation
 
 - Reject unrelated role titles before expensive experience and location analysis.

@@ -56,6 +56,8 @@ let aiConnection=null, aiReview=null, selectedJobOwner=null, guideReturnJob=null
 const aiFailures=new Map();
 const enrichJob=createJobEnricher();
 let resultRenderTimer,scanRenderTimer,lastRenderedDay='';
+let resultEntryPending = false;
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const siteWorkspaces=new Map();
 let siteScanRun=null,siteBatchRun=null;
 let comparisonJobs=new Map(), followUpFilter='all', plannerPriority='all', plannerOrder='default';
@@ -171,8 +173,25 @@ function emptyState() {
   if(!saved&&searchDone&&current().enabledSources?.length===0)return '<div class="empty"><div class="empty-icon">◎</div><h3>Choose your sources.</h3><p>No job sources are enabled for this profile. Select the websites you want to search.</p><button class="secondary" id="choose-empty-sources">Choose sources</button></div>';
   return `<div class="empty"><div class="empty-icon" aria-hidden="true">${saved ? '▤' : '↗'}</div><h3>${searchError ? 'We could not load your search.' : filtered ? 'Nothing here with these filters.' : saved ? 'Your next steps start here.' : 'Let’s widen the possibilities.'}</h3><p>${searchError ? esc(searchError) : filtered ? activity==='new'?'New highlights listings first found after your initial search, until you open them. Check back after your next search.':activity==='hidden'?'Hidden listings matching this search appear here, with a Restore button.':'Clear the result filters to see more opportunities.' : saved ? 'Save a role from Discover to track applications and keep your notes in one place.' : 'Try fewer keywords, a broader location, or another experience level. Unknown requirements remain visible.'}</p><button class="secondary" id="empty-action">${searchError ? 'Try again' : filtered ? 'Clear result filters' : saved ? 'Discover jobs ↗' : 'Edit search preferences'}</button></div>`;
 }
+function revealResults(container) {
+  if (!resultEntryPending || busy) return;
+  resultEntryPending = false;
+  if (reducedMotion.matches) return;
+  // Animate deliberate navigation, not every keystroke, bookmark or filter change.
+  [...container.children].slice(0,12).forEach((element,index) => {
+    element.style.setProperty('--result-enter-delay', `${Math.min(index,5)*30}ms`);
+    element.classList.add('result-enter');
+    element.addEventListener('animationend', () => {
+      element.classList.remove('result-enter');
+      element.style.removeProperty('--result-enter-delay');
+    }, {once:true});
+  });
+}
 function render() {
   lastRenderedDay=localDay();
+  document.body.classList.toggle('is-searching',busy);
+  $('#search').setAttribute('aria-busy',String(busy));
+  $('#refresh-search').setAttribute('aria-busy',String(busy));
   const original = currentView === 'saved' ? Object.values(current().saved).map(s => s.job) : jobs;
   const base = (currentView==='saved'?original:original.filter(j=>activityMatches(current().tracking,j,activity))).map(enrich);
   const selectedWebsite = $('#website').value;
@@ -205,6 +224,7 @@ function render() {
   $('#cards').hidden=board;
   $('#stage-board').hidden=!board;
   if(board)$('#stage-board').innerHTML=filtered.length?boardHTML(filtered):emptyState();
+  revealResults(board?$('#stage-board'):$('#cards'));
   renderPlanner();renderComparisonTray();
   $('#pagination').hidden = board || slice.pages <= 1 || (busy && !searchDone);
   $('#page-info').textContent = `${slice.start}–${slice.end} of ${slice.total} · Page ${slice.page} of ${slice.pages}`;
@@ -278,6 +298,7 @@ async function search({scroll = false} = {}) {
     sources = result.sources.map(s => ({...s, fetchedAt:s.fetchedAt || (s.status==='ok'?result.updated:null)}));
     applied = snapshot;
     searchDone = true;
+    resultEntryPending = true;
     page = 1;
     showSources();
     const failed = sources.filter(s => s.status !== 'ok');
@@ -322,6 +343,7 @@ function toggleSave(id) {
   if ($('#job-dialog').open && selectedJob?.id === id) details(job);
 }
 function setView(view) {
+  resultEntryPending = view !== currentView;
   currentView = view;
   document.body.classList.toggle('show-applications',view==='saved');
   stage = 'all';
@@ -335,8 +357,8 @@ function setView(view) {
   });
   $('#page-name').textContent = view === 'saved' ? 'Applications' : 'Discover';
   $('#refresh-search').hidden = view === 'saved';
-  $('#headline').innerHTML = view === 'saved' ? 'Your <em>applications.</em>' : 'Your job <em>search.</em>';
-  $('#subtitle').textContent = view === 'saved' ? 'You update the stages and notes. Open the original job website when you are ready to apply.' : 'Search job feeds, review a role with local AI, and keep track of your next steps.';
+  $('#headline').innerHTML = view === 'saved' ? 'Every <em>next step,</em> in view.' : 'Find your <em>next chapter.</em>';
+  $('#subtitle').textContent = view === 'saved' ? 'Your shortlist, application stages, and next steps. All in one place.' : 'Discover opportunities. Understand your fit. Make your next move.';
   clearResultFilters();
 }
 function openFilters() {
@@ -459,7 +481,7 @@ $('#pipeline-stages').onclick = event => {
   const button = event.target.closest('[data-pipeline-stage]');
   if (button) { stage = button.dataset.pipelineStage; page = 1; render(); }
 };
-for (const [id, change] of [['prev-page', -1], ['next-page', 1]]) $('#' + id).onclick = () => { page += change; render(); $('#results-title').scrollIntoView({block:'start'}); };
+for (const [id, change] of [['prev-page', -1], ['next-page', 1]]) $('#' + id).onclick = () => { page += change; resultEntryPending = true; render(); $('#results-title').scrollIntoView({block:'start'}); };
 $('#cards').onclick = event => {
   const activityButton=event.target.closest('[data-activity]');
   if(activityButton){const job=findJob(activityButton.dataset.id);if(job){if(!commitProfile({tracking:setActivity(current().tracking,job,activityButton.dataset.activity)}))return;render();toast(activityButton.dataset.activity==='hide'?'Job hidden. Find it under Hidden to restore it.':activityButton.dataset.activity==='unseen'?'Job marked unseen.':'Job restored.');}return;}
